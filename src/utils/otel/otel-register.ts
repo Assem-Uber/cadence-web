@@ -19,7 +19,6 @@ import logger from '@/utils/logger';
 import { type OtelRegisterConfig } from './otel.types';
 
 const exporter = new PrometheusExporter({
-  port: 9464,
   prefix: 'cadence_web',
   appendTimestamp: true,
 });
