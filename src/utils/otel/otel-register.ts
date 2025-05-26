@@ -6,11 +6,6 @@ import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
 import { UndiciInstrumentation } from '@opentelemetry/instrumentation-undici';
 import { JaegerPropagator } from '@opentelemetry/propagator-jaeger';
 import { resourceFromAttributes } from '@opentelemetry/resources';
-import {
-  ConsoleMetricExporter,
-  MeterProvider,
-  PeriodicExportingMetricReader,
-} from '@opentelemetry/sdk-metrics';
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions';
 
@@ -22,26 +17,6 @@ const exporter = new PrometheusExporter({
   prefix: 'cadence_web',
   appendTimestamp: true,
 });
-
-// Creates MeterProvider and installs the exporter as a MetricReader
-/* const meterProvider = new MeterProvider({
-  readers: [exporter],
-
-});
-
-const meter = meterProvider.getMeter('cadence-web');
-
-
-// Now, start recording data
-const counter = meter.createCounter('cadence-web-counter', {
-  description: 'Example of a counter'
-});
-
-counter.add(1, {
-  route: '/hello',
-  status_code: '200',
-});
- */
 
 export async function register(config?: OtelRegisterConfig) {
   diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.DEBUG);
