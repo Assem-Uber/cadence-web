@@ -29,4 +29,13 @@ export const styled = {
       marginBottom: 0,
     })
   ),
+  FiltersRow: createStyled(
+    'div',
+    ({ $theme }: { $theme: Theme }): StyleObject => ({
+      display: 'flex',
+      alignItems: 'flex-start',
+      gap: $theme.sizing.scale300,
+      flexWrap: 'wrap',
+    })
+  ),
 };
