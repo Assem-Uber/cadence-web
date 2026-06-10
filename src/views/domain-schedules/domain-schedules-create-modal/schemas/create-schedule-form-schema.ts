@@ -1,8 +1,13 @@
 import { z } from 'zod';
 
 import { CRON_FIELD_ORDER } from '@/components/cron-schedule-input/cron-schedule-input.constants';
+import {
+  SCHEDULE_CATCH_UP_POLICIES,
+  SCHEDULE_OVERLAP_POLICIES,
+} from '@/route-handlers/create-schedule/create-schedule.constants';
 // TODO(refactor): WORKER_SDK_LANGUAGES is imported from start-workflow — extract to shared constants once both features stabilise
 import { WORKER_SDK_LANGUAGES } from '@/route-handlers/start-workflow/start-workflow.constants';
+// TODO(refactor): schedule policy constants imported from create-schedule route handler — extract to shared location
 import { getCronFieldsError } from '@/views/workflow-actions/workflow-action-start-form/helpers/get-cron-fields-error';
 
 const cronExpressionFieldsSchema = z
@@ -61,7 +66,25 @@ const cronExpressionFieldsSchema = z
     }
   });
 
+const retryPolicySchema = z
+  .object({
+    initialIntervalSeconds: z.number().positive('Must be positive').optional(),
+    backoffCoefficient: z.number().positive('Must be positive').optional(),
+    maximumIntervalSeconds: z.number().positive('Must be positive').optional(),
+    expirationIntervalSeconds: z
+      .number()
+      .positive('Must be positive')
+      .optional(),
+    maximumAttempts: z
+      .number()
+      .int('Must be an integer')
+      .nonnegative('Must be zero or positive')
+      .optional(),
+  })
+  .optional();
+
 export const createScheduleFormSchema = z.object({
+  // --- Main fields ---
   cronExpression: cronExpressionFieldsSchema,
   workflowType: z.object({
     name: z.string().min(1, 'Workflow type is required'),
@@ -106,4 +129,30 @@ export const createScheduleFormSchema = z.object({
       }
     }),
   pauseOnFailure: z.boolean().optional().default(false),
+
+  // --- Advanced fields ---
+  scheduleId: z.string().min(1).optional(),
+  startTime: z.string().optional(),
+  endTime: z.string().optional(),
+  jitterSeconds: z.number().nonnegative('Must be zero or positive').optional(),
+  overlapPolicy: z.enum(SCHEDULE_OVERLAP_POLICIES).optional(),
+  catchUpPolicy: z.enum(SCHEDULE_CATCH_UP_POLICIES).optional(),
+  catchUpWindowSeconds: z
+    .number()
+    .nonnegative('Must be zero or positive')
+    .optional(),
+  bufferLimit: z
+    .number()
+    .int('Must be an integer')
+    .nonnegative('Must be zero or positive')
+    .optional(),
+  concurrencyLimit: z
+    .number()
+    .int('Must be an integer')
+    .nonnegative('Must be zero or positive')
+    .optional(),
+  retryPolicy: retryPolicySchema,
+  memo: z.string().optional(),
+  searchAttributes: z.string().optional(),
+  workflowIdPrefix: z.string().optional(),
 });
