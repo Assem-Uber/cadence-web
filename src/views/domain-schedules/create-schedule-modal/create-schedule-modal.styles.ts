@@ -37,4 +37,12 @@ export const overrides = {
       }),
     },
   } satisfies ModalOverrides,
+  banner: {
+    Root: {
+      style: ({ $theme }: { $theme: Theme }): StyleObject => ({
+        marginTop: $theme.sizing.scale400,
+        marginBottom: 0,
+      }),
+    },
+  } satisfies BannerOverrides,
 };
