@@ -81,7 +81,7 @@ export default function CreateScheduleModal({
       <form onSubmit={handleSubmit(onSubmit)}>
         <styled.ModalBody>
           <CreateScheduleForm control={control} trigger={trigger} />
-          {error && (
+          {error && !error.validationErrors?.length && (
             <Banner
               hierarchy={HIERARCHY.low}
               kind={BANNER_KIND.negative}
