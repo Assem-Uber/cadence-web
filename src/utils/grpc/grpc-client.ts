@@ -5,6 +5,8 @@ import { type CountWorkflowExecutionsRequest__Input } from '@/__generated__/prot
 import { type CountWorkflowExecutionsResponse } from '@/__generated__/proto-ts/uber/cadence/api/v1/CountWorkflowExecutionsResponse';
 import { type CreateScheduleRequest__Input } from '@/__generated__/proto-ts/uber/cadence/api/v1/CreateScheduleRequest';
 import { type CreateScheduleResponse } from '@/__generated__/proto-ts/uber/cadence/api/v1/CreateScheduleResponse';
+import { type DescribeScheduleRequest__Input } from '@/__generated__/proto-ts/uber/cadence/api/v1/DescribeScheduleRequest';
+import { type DescribeScheduleResponse } from '@/__generated__/proto-ts/uber/cadence/api/v1/DescribeScheduleResponse';
 import { type DescribeDomainRequest__Input } from '@/__generated__/proto-ts/uber/cadence/api/v1/DescribeDomainRequest';
 import { type DescribeDomainResponse } from '@/__generated__/proto-ts/uber/cadence/api/v1/DescribeDomainResponse';
 import { type DescribeTaskListRequest__Input } from '@/__generated__/proto-ts/uber/cadence/api/v1/DescribeTaskListRequest';
@@ -80,6 +82,9 @@ export type GRPCClusterMethods = {
   createSchedule: (
     payload: CreateScheduleRequest__Input
   ) => Promise<CreateScheduleResponse>;
+  describeSchedule: (
+    payload: DescribeScheduleRequest__Input
+  ) => Promise<DescribeScheduleResponse>;
   describeCluster: (
     payload: DescribeClusterRequest__Input
   ) => Promise<DescribeClusterResponse>;
@@ -253,6 +258,13 @@ const getClusterServicesMethods = async (
       CreateScheduleResponse
     >({
       method: 'CreateSchedule',
+      metadata: metadata,
+    }),
+    describeSchedule: scheduleService.request<
+      DescribeScheduleRequest__Input,
+      DescribeScheduleResponse
+    >({
+      method: 'DescribeSchedule',
       metadata: metadata,
     }),
     describeCluster: adminService.request<
