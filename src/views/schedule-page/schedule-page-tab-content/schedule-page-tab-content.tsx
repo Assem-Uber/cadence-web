@@ -5,12 +5,16 @@ import { notFound } from 'next/navigation';
 
 import ErrorPanel from '@/components/error-panel/error-panel';
 import PanelSection from '@/components/panel-section/panel-section';
+import { type ReadOnlyDetailsTableRow } from '@/components/read-only-details-table/read-only-details-table.types';
 import SectionLoadingIndicator from '@/components/section-loading-indicator/section-loading-indicator';
 import useStyletronClasses from '@/hooks/use-styletron-classes';
 import { RequestError } from '@/utils/request/request-error';
 import useDescribeSchedule from '@/views/shared/hooks/use-describe-schedule/use-describe-schedule';
 
+import scheduleDetailsSectionsConfig from '../config/schedule-details-sections.config';
+import { type ScheduleDetailRowConfig } from '../config/schedule-detail-sections.types';
 import schedulePageTabsConfig from '../config/schedule-page-tabs.config';
+import SchedulePageDetailsSection from '../schedule-page-details-section/schedule-page-details-section';
 
 import { cssStyles } from './schedule-page-tab-content.styles';
 import { type Props } from './schedule-page-tab-content.types';
@@ -105,9 +109,45 @@ export default function SchedulePageTabContent({ params }: Props) {
     );
   }
 
+  if (params.scheduleTab === 'details') {
+    return (
+      <div className={cls.tabContentContainer}>
+        <div className={cls.detailsSectionsContainer}>
+          {scheduleDetailsSectionsConfig.map((section) => {
+            const rows = getRowsFromConfig(section.rowsConfig, data);
+            if (!rows.length) {
+              return null;
+            }
+
+            return (
+              <SchedulePageDetailsSection
+                key={section.key}
+                title={section.title}
+                rows={rows}
+              />
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={cls.tabContentContainer}>
       <div>{tabConfig.title} — coming soon</div>
     </div>
   );
+}
+
+function getRowsFromConfig(
+  config: ScheduleDetailRowConfig[],
+  data: NonNullable<ReturnType<typeof useDescribeSchedule>['data']>
+): ReadOnlyDetailsTableRow[] {
+  return config
+    .filter((rowConfig) => !rowConfig.hide || !rowConfig.hide({ describeSchedule: data }))
+    .map((rowConfig) => ({
+      key: rowConfig.key,
+      label: rowConfig.getLabel(),
+      value: rowConfig.getValue({ describeSchedule: data }),
+    }));
 }

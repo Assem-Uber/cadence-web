@@ -11,6 +11,11 @@ const cssStylesObj = {
     marginBottom: theme.sizing.scale900,
     flex: 1,
   }),
+  detailsSectionsContainer: (theme) => ({
+    display: 'flex',
+    flexDirection: 'column',
+    gap: theme.sizing.scale900,
+  }),
 } satisfies StyletronCSSObject;
 
 export const cssStyles: StyletronCSSObjectOf<typeof cssStylesObj> =
