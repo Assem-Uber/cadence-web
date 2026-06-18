@@ -3,22 +3,106 @@ import React from 'react';
 
 import { notFound } from 'next/navigation';
 
+import ErrorPanel from '@/components/error-panel/error-panel';
+import PanelSection from '@/components/panel-section/panel-section';
+import SectionLoadingIndicator from '@/components/section-loading-indicator/section-loading-indicator';
 import useStyletronClasses from '@/hooks/use-styletron-classes';
-import decodeUrlParams from '@/utils/decode-url-params';
+import { RequestError } from '@/utils/request/request-error';
+import useDescribeSchedule from '@/views/shared/hooks/use-describe-schedule/use-describe-schedule';
 
 import schedulePageTabsConfig from '../config/schedule-page-tabs.config';
-import { type SchedulePageTabsParams } from '../schedule-page-tabs/schedule-page-tabs.types';
 
 import { cssStyles } from './schedule-page-tab-content.styles';
 import { type Props } from './schedule-page-tab-content.types';
 
 export default function SchedulePageTabContent({ params }: Props) {
   const { cls } = useStyletronClasses(cssStyles);
-  const decodedParams = decodeUrlParams(params) as SchedulePageTabsParams;
-  const tabConfig = schedulePageTabsConfig[decodedParams.scheduleTab];
+  const tabConfig = schedulePageTabsConfig[params.scheduleTab];
 
   if (!tabConfig) {
     return notFound();
+  }
+
+  const schedulesListLink = `/domains/${encodeURIComponent(params.domain)}/${encodeURIComponent(params.cluster)}/schedules`;
+
+  const {
+    data,
+    error,
+    isLoading,
+    isPending,
+    refetch,
+  } = useDescribeSchedule({
+    domain: params.domain,
+    cluster: params.cluster,
+    scheduleId: params.scheduleId,
+  });
+
+  if (isLoading || isPending) {
+    return (
+      <div className={cls.tabContentContainer}>
+        <SectionLoadingIndicator />
+      </div>
+    );
+  }
+
+  if (error instanceof RequestError && error.status === 404) {
+    return (
+      <div className={cls.tabContentContainer}>
+        <PanelSection>
+          <ErrorPanel
+            error={error}
+            message={`Schedule "${params.scheduleId}" was not found`}
+            actions={[
+              {
+                kind: 'link-internal',
+                label: 'Go to schedules',
+                link: schedulesListLink,
+              },
+            ]}
+            reset={refetch}
+            omitLogging={true}
+            showErrorDetails={true}
+          />
+        </PanelSection>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className={cls.tabContentContainer}>
+        <PanelSection>
+          <ErrorPanel
+            error={error}
+            message="Failed to load schedule"
+            actions={[{ kind: 'retry', label: 'Retry' }]}
+            reset={refetch}
+            showErrorDetails={error instanceof RequestError}
+          />
+        </PanelSection>
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <div className={cls.tabContentContainer}>
+        <PanelSection>
+          <ErrorPanel
+            message="Schedule data is unavailable"
+            description="Try refreshing the page. If the issue persists, return to schedules and open it again."
+            actions={[
+              {
+                kind: 'link-internal',
+                label: 'Go to schedules',
+                link: schedulesListLink,
+              },
+            ]}
+            omitLogging={true}
+          />
+        </PanelSection>
+      </div>
+    );
   }
 
   return (
