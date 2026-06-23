@@ -4,10 +4,10 @@ import { useForm } from 'react-hook-form';
 
 import { render, screen, userEvent } from '@/test-utils/rtl';
 
-import { type DomainSchedulesCreateFormData } from '../../domain-schedules-create-modal.types';
-import CreateScheduleAdvancedForm from '../create-schedule-advanced-form';
+import { type DomainSchedulesCreateFormData } from '../../domain-schedules-create-modal/domain-schedules-create-modal.types';
+import DomainSchedulesCreateAdvancedForm from '../domain-schedules-create-advanced-form';
 
-describe(CreateScheduleAdvancedForm.name, () => {
+describe(DomainSchedulesCreateAdvancedForm.name, () => {
   it('renders the accordion toggle and is collapsed by default', () => {
     setup();
 
@@ -60,7 +60,7 @@ function setup() {
       defaultValues: {},
     });
     return (
-      <CreateScheduleAdvancedForm
+      <DomainSchedulesCreateAdvancedForm
         control={control}
         fieldErrors={fieldErrors}
       />

@@ -12,7 +12,7 @@ import CronScheduleInput from '@/components/cron-schedule-input/cron-schedule-in
 import MultiJsonInput from '@/components/multi-json-input/multi-json-input';
 // TODO(refactor): WORKER_SDK_LANGUAGES is imported from start-workflow — extract to shared constants once both features stabilise
 import { WORKER_SDK_LANGUAGES } from '@/route-handlers/start-workflow/start-workflow.constants';
-import CreateScheduleAdvancedForm from '@/views/domain-schedules/domain-schedules-create-modal/create-schedule-advanced-form/create-schedule-advanced-form';
+import DomainSchedulesCreateAdvancedForm from '@/views/domain-schedules/domain-schedules-create-advanced-form/domain-schedules-create-advanced-form';
 import DomainSchedulesHorizontalField from '@/views/domain-schedules/domain-schedules-horizontal-field/domain-schedules-horizontal-field';
 // TODO(refactor): getFieldErrorMessage and getFieldObjectErrorMessages are imported from start-workflow helpers — extract to shared utils
 import getFieldErrorMessage from '@/views/workflow-actions/workflow-action-start-form/helpers/get-field-error-message';
@@ -306,7 +306,7 @@ export default function DomainSchedulesCreateForm({
         />
       </DomainSchedulesHorizontalField>
 
-      <CreateScheduleAdvancedForm
+      <DomainSchedulesCreateAdvancedForm
         control={control}
         fieldErrors={fieldErrors}
       />

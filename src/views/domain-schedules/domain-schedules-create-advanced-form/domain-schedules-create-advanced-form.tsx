@@ -13,10 +13,14 @@ import { MdExpandLess, MdExpandMore } from 'react-icons/md';
 import useStyletronClasses from '@/hooks/use-styletron-classes';
 import DomainSchedulesHorizontalField from '@/views/domain-schedules/domain-schedules-horizontal-field/domain-schedules-horizontal-field';
 import getFieldErrorMessage from '@/views/workflow-actions/workflow-action-start-form/helpers/get-field-error-message';
-import { cssStyles, overrides } from './create-schedule-advanced-form.styles';
-import { type Props } from './create-schedule-advanced-form.types';
 
-export default function CreateScheduleAdvancedForm({ control, fieldErrors }: Props) {
+import { cssStyles, overrides } from './domain-schedules-create-advanced-form.styles';
+import { type Props } from './domain-schedules-create-advanced-form.types';
+
+export default function DomainSchedulesCreateAdvancedForm({
+  control,
+  fieldErrors,
+}: Props) {
   const { cls } = useStyletronClasses(cssStyles);
 
   return (
@@ -36,9 +40,7 @@ export default function CreateScheduleAdvancedForm({ control, fieldErrors }: Pro
                     <MdExpandMore size={20} />
                   )
                 }
-                onClick={() =>
-                  props.onClick?.({ expanded: !props.$expanded })
-                }
+                onClick={() => props.onClick?.({ expanded: !props.$expanded })}
               >
                 {props.$expanded
                   ? 'Hide advanced configurations'
