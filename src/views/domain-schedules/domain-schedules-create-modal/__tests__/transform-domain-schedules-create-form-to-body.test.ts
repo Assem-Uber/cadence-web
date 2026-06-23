@@ -1,5 +1,4 @@
 import { type DomainSchedulesCreateFormData } from '../domain-schedules-create-modal.types';
-import { CREATE_SCHEDULE_ADVANCED_FORM_DEFAULTS } from '../create-schedule-advanced-form/create-schedule-advanced-form.constants';
 import transformDomainSchedulesCreateFormToBody from '../helpers/transform-domain-schedules-create-form-to-body';
 
 describe(transformDomainSchedulesCreateFormToBody.name, () => {
@@ -17,9 +16,6 @@ describe(transformDomainSchedulesCreateFormToBody.name, () => {
     executionStartToCloseTimeoutSeconds: 3600,
     taskStartToCloseTimeoutSeconds: 45,
     pauseOnFailure: false,
-    overlapPolicy: CREATE_SCHEDULE_ADVANCED_FORM_DEFAULTS.overlapPolicy,
-    catchUpPolicy: CREATE_SCHEDULE_ADVANCED_FORM_DEFAULTS.catchUpPolicy,
-    catchUpWindowDays: CREATE_SCHEDULE_ADVANCED_FORM_DEFAULTS.catchUpWindowDays,
   };
 
   it('maps form fields to create-schedule request body', () => {
@@ -28,27 +24,14 @@ describe(transformDomainSchedulesCreateFormToBody.name, () => {
     expect(result).toEqual({
       cronExpression: '0 9 * * *',
       pauseOnFailure: false,
-      overlapPolicy: CREATE_SCHEDULE_ADVANCED_FORM_DEFAULTS.overlapPolicy,
-      catchUpPolicy: CREATE_SCHEDULE_ADVANCED_FORM_DEFAULTS.catchUpPolicy,
       startWorkflow: {
         workflowType: { name: 'DemoWorkflow' },
         taskList: { name: 'demo-tl' },
         workerSDKLanguage: 'GO',
         executionStartToCloseTimeoutSeconds: 3600,
         taskStartToCloseTimeoutSeconds: 45,
-        workflowIdPrefix: '',
       },
     });
-  });
-
-  it('includes catch-up window when catch-up policy is not skip', () => {
-    const result = transformDomainSchedulesCreateFormToBody({
-      ...baseForm,
-      catchUpPolicy: 'SCHEDULE_CATCH_UP_POLICY_ONE',
-      catchUpWindowDays: 7,
-    });
-
-    expect(result.catchUpWindowSeconds).toBe(7 * 86_400);
   });
 
   it('includes parsed JSON inputs when provided', () => {
@@ -78,5 +61,18 @@ describe(transformDomainSchedulesCreateFormToBody.name, () => {
 
     expect(result.startWorkflow.workflowType.name).toBe('DemoWorkflow');
     expect(result.startWorkflow.taskList.name).toBe('demo-tl');
+  });
+
+  it('maps optional simple advanced fields only when provided', () => {
+    const result = transformDomainSchedulesCreateFormToBody({
+      ...baseForm,
+      scheduleId: '  my-schedule  ',
+      workflowIdPrefix: '  wf-prefix  ',
+      jitterSeconds: 10,
+    });
+
+    expect(result.scheduleId).toBe('my-schedule');
+    expect(result.jitterSeconds).toBe(10);
+    expect(result.startWorkflow.workflowIdPrefix).toBe('wf-prefix');
   });
 });

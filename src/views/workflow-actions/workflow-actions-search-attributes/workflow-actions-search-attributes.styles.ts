@@ -34,11 +34,6 @@ const cssStylesObj = {
     borderLeft: `2px solid ${theme.colors.borderOpaque}`,
     paddingLeft: theme.sizing.scale600,
   }),
-  containerFlat: (theme: Theme) => ({
-    display: 'flex',
-    flexDirection: 'column',
-    gap: theme.sizing.scale600,
-  }),
   attributeRow: (theme: Theme) => ({
     display: 'flex',
     alignItems: 'flex-start',

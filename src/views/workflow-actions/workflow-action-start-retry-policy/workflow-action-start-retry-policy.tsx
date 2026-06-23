@@ -21,7 +21,6 @@ export default function WorkflowActionStartRetryPolicy({
   control,
   clearErrors,
   fieldErrors,
-  showSectionBorder = true,
 }: Props) {
   const { cls } = useStyletronClasses(cssStyles);
   const enableRetryPolicy = useWatch({
@@ -72,13 +71,7 @@ export default function WorkflowActionStartRetryPolicy({
       </FormControl>
 
       {enableRetryPolicy && (
-        <div
-          className={
-            showSectionBorder
-              ? cls.retryPolicySection
-              : cls.retryPolicySectionFlat
-          }
-        >
+        <div className={cls.retryPolicySection}>
           <FormControl label="Initial Interval">
             <Controller
               name="retryPolicy.initialIntervalSeconds"

@@ -168,11 +168,12 @@ function TestWrapper({
   defaultValues?: Partial<DomainSchedulesCreateFormData>;
   injectFieldErrors?: boolean;
 }) {
-  const { control, trigger, clearErrors, setError } =
-    useForm<DomainSchedulesCreateFormData>({
+  const { control, trigger, setError } = useForm<DomainSchedulesCreateFormData>(
+    {
       defaultValues: { ...defaultValues },
       mode: 'onSubmit',
-    });
+    }
+  );
 
   useEffect(() => {
     if (!injectFieldErrors) return;
@@ -181,14 +182,7 @@ function TestWrapper({
     }
   }, [injectFieldErrors, setError]);
 
-  return (
-    <DomainSchedulesCreateForm
-      control={control}
-      clearErrors={clearErrors}
-      trigger={trigger}
-      cluster="test-cluster"
-    />
-  );
+  return <DomainSchedulesCreateForm control={control} trigger={trigger} />;
 }
 
 async function setup({

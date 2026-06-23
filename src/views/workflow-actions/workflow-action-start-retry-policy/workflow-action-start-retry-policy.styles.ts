@@ -28,10 +28,6 @@ const cssStylesObj = {
     display: 'flex',
     flexDirection: 'column',
   }),
-  retryPolicySectionFlat: () => ({
-    display: 'flex',
-    flexDirection: 'column',
-  }),
 } satisfies StyletronCSSObject;
 
 export const cssStyles: StyletronCSSObjectOf<typeof cssStylesObj> =
