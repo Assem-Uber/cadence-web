@@ -73,21 +73,6 @@ export const styled = {
       marginTop: $theme.sizing.scale200,
     })
   ),
-  GroupedFields: createStyled(
-    'div',
-    ({ $theme }: { $theme: Theme }): StyleObject => ({
-      display: 'flex',
-      flexDirection: 'column',
-      gap: $theme.sizing.scale400,
-      marginBottom: $theme.sizing.scale600,
-      borderLeft: `2px solid ${$theme.colors.borderOpaque}`,
-      paddingLeft: $theme.sizing.scale600,
-      // ponytail: wrapper controls child spacing instead of grouped prop.
-      '> div': {
-        marginBottom: 0,
-      },
-    })
-  ),
 };
 
 const cssStylesObj = {
