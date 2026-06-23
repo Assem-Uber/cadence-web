@@ -30,6 +30,7 @@ import { type Props } from './domain-schedules-create-form.types';
 export default function DomainSchedulesCreateForm({
   control,
   trigger,
+  clearErrors,
 }: Props) {
   const { errors: fieldErrors, isSubmitted } = useFormState({ control });
   const cronExpressionError = getFieldObjectErrorMessages(
@@ -308,6 +309,7 @@ export default function DomainSchedulesCreateForm({
 
       <DomainSchedulesCreateAdvancedForm
         control={control}
+        clearErrors={clearErrors}
         fieldErrors={fieldErrors}
       />
     </div>

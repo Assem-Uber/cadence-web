@@ -1,4 +1,5 @@
 import { CRON_FIELD_ORDER } from '@/components/cron-schedule-input/cron-schedule-input.constants';
+import { ScheduleOverlapPolicy } from '@/__generated__/proto-ts/uber/cadence/api/v1/ScheduleOverlapPolicy';
 import { type CreateScheduleRequestBody } from '@/route-handlers/create-schedule/create-schedule.types';
 import { type Json } from '@/route-handlers/start-workflow/start-workflow.types';
 
@@ -30,6 +31,15 @@ export default function transformDomainSchedulesCreateFormToBody(
         : {}),
     },
     pauseOnFailure: formData.pauseOnFailure,
+    overlapPolicy: formData.overlapPolicy,
+    ...(formData.overlapPolicy ===
+    ScheduleOverlapPolicy.SCHEDULE_OVERLAP_POLICY_BUFFER
+      ? { bufferLimit: formData.bufferLimit }
+      : {}),
+    ...(formData.overlapPolicy ===
+    ScheduleOverlapPolicy.SCHEDULE_OVERLAP_POLICY_CONCURRENT
+      ? { concurrencyLimit: formData.concurrencyLimit }
+      : {}),
     ...(formData.scheduleId?.trim()
       ? { scheduleId: formData.scheduleId.trim() }
       : {}),

@@ -8,3 +8,11 @@ export type Props = {
   error?: ReactNode;
   children: ReactNode;
 };
+
+export type GroupedFieldsProps = {
+  children: ReactNode;
+};
+
+export type Component = ((props: Props) => JSX.Element) & {
+  GroupedFields: (props: GroupedFieldsProps) => JSX.Element;
+};

@@ -41,6 +41,17 @@ export const styled = {
       minWidth: 0,
     })
   ),
+  GroupedFields: createStyled(
+    'div',
+    ({ $theme }: { $theme: Theme }): StyleObject => ({
+      borderLeftWidth: '2px',
+      borderLeftStyle: 'solid',
+      borderLeftColor: $theme.colors.borderOpaque,
+      paddingLeft: $theme.sizing.scale500,
+      marginLeft: $theme.sizing.scale500,
+      marginBottom: $theme.sizing.scale400,
+    })
+  ),
   FieldLabel: createStyled(
     'label',
     ({ $theme }: { $theme: Theme }): StyleObject => ({

@@ -1,13 +1,17 @@
 'use client';
 
-import React from 'react';
+import React, { type ReactNode } from 'react';
 
 import { FormControl } from 'baseui/form-control';
 
 import { overrides, styled } from './domain-schedules-horizontal-field.styles';
-import { type Props } from './domain-schedules-horizontal-field.types';
+import {
+  type Component,
+  type GroupedFieldsProps,
+  type Props,
+} from './domain-schedules-horizontal-field.types';
 
-export default function DomainSchedulesHorizontalField({
+const DomainSchedulesHorizontalField: Component = function DomainSchedulesHorizontalField({
   label,
   description,
   htmlFor,
@@ -36,4 +40,12 @@ export default function DomainSchedulesHorizontalField({
       </styled.FieldControlColumn>
     </styled.FieldRow>
   );
+};
+
+function GroupedFields({ children }: GroupedFieldsProps) {
+  return <styled.GroupedFields>{children}</styled.GroupedFields>;
 }
+
+DomainSchedulesHorizontalField.GroupedFields = GroupedFields;
+
+export default DomainSchedulesHorizontalField;
