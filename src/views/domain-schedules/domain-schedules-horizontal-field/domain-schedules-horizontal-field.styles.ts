@@ -2,11 +2,6 @@ import { styled as createStyled, type Theme } from 'baseui';
 import { type FormControlOverrides } from 'baseui/form-control';
 import { type StyleObject } from 'styletron-react';
 
-import type {
-  StyletronCSSObject,
-  StyletronCSSObjectOf,
-} from '@/hooks/use-styletron-classes';
-
 export const overrides = {
   horizontalFieldFormControl: {
     ControlContainer: {
@@ -74,9 +69,3 @@ export const styled = {
     })
   ),
 };
-
-const cssStylesObj = {
-} satisfies StyletronCSSObject;
-
-export const cssStyles: StyletronCSSObjectOf<typeof cssStylesObj> =
-  cssStylesObj;

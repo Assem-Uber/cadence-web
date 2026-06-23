@@ -40,10 +40,9 @@ export default function transformCreateScheduleBodyToGrpcInput({
       ? getGrpcTimestampFromIso(body.startTime)
       : undefined,
     endTime: body.endTime ? getGrpcTimestampFromIso(body.endTime) : undefined,
-    jitter:
-      body.jitterSeconds !== undefined
-        ? getGrpcDurationFromSeconds(body.jitterSeconds)
-        : undefined,
+    jitter: body.jitterSeconds
+      ? getGrpcDurationFromSeconds(body.jitterSeconds)
+      : undefined,
   };
 
   const startWorkflow = body.startWorkflow;
