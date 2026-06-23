@@ -1,23 +1,12 @@
+import { ScheduleCatchUpPolicy } from '@/__generated__/proto-ts/uber/cadence/api/v1/ScheduleCatchUpPolicy';
+import { ScheduleOverlapPolicy } from '@/__generated__/proto-ts/uber/cadence/api/v1/ScheduleOverlapPolicy';
 import { CRON_FIELD_ORDER } from '@/components/cron-schedule-input/cron-schedule-input.constants';
 import { type CreateScheduleRequestBody } from '@/route-handlers/create-schedule/create-schedule.types';
 import { type Json } from '@/route-handlers/start-workflow/start-workflow.types';
 
 import { type DomainSchedulesCreateFormData } from '../domain-schedules-create-modal.types';
 
-function safeParseJson(
-  value: string | undefined
-): Record<string, unknown> | undefined {
-  if (!value?.trim()) return undefined;
-  try {
-    const parsed = JSON.parse(value);
-    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-      return parsed as Record<string, unknown>;
-    }
-  } catch {
-    // ignore invalid JSON — validated by Zod
-  }
-  return undefined;
-}
+const SECONDS_PER_DAY = 86_400;
 
 export default function transformDomainSchedulesCreateFormToBody(
   formData: DomainSchedulesCreateFormData
@@ -30,11 +19,46 @@ export default function transformDomainSchedulesCreateFormToBody(
     ?.filter((v) => v.trim() !== '')
     .map((v) => JSON.parse(v) as Json);
 
-  const retryPolicy =
-    formData.retryPolicy &&
-    Object.values(formData.retryPolicy).some((v) => v !== undefined)
-      ? formData.retryPolicy
+  const searchAttributesObject =
+    formData.searchAttributes && formData.searchAttributes.length > 0
+      ? Object.fromEntries(
+          formData.searchAttributes.map((item) => [item.key, item.value])
+        )
       : undefined;
+
+  const retryPolicy = formData.enableRetryPolicy
+    ? {
+        initialIntervalSeconds: formData.retryPolicy?.initialIntervalSeconds
+          ? parseInt(formData.retryPolicy.initialIntervalSeconds, 10)
+          : undefined,
+        backoffCoefficient: formData.retryPolicy?.backoffCoefficient
+          ? parseFloat(formData.retryPolicy.backoffCoefficient)
+          : undefined,
+        maximumIntervalSeconds: formData.retryPolicy?.maximumIntervalSeconds
+          ? parseInt(formData.retryPolicy.maximumIntervalSeconds, 10)
+          : undefined,
+        ...(formData.limitRetries === 'ATTEMPTS' && {
+          maximumAttempts: formData.retryPolicy?.maximumAttempts
+            ? parseInt(formData.retryPolicy.maximumAttempts, 10)
+            : undefined,
+        }),
+        ...(formData.limitRetries === 'DURATION' && {
+          expirationIntervalSeconds: formData.retryPolicy
+            ?.expirationIntervalSeconds
+            ? parseInt(formData.retryPolicy.expirationIntervalSeconds, 10)
+            : undefined,
+        }),
+      }
+    : undefined;
+
+  const overlapPolicy = formData.overlapPolicy;
+  const includeBufferLimit =
+    overlapPolicy === ScheduleOverlapPolicy.SCHEDULE_OVERLAP_POLICY_BUFFER;
+  const includeConcurrencyLimit =
+    overlapPolicy === ScheduleOverlapPolicy.SCHEDULE_OVERLAP_POLICY_CONCURRENT;
+  const includeCatchUpWindow =
+    formData.catchUpPolicy !==
+    ScheduleCatchUpPolicy.SCHEDULE_CATCH_UP_POLICY_SKIP;
 
   return {
     scheduleId: formData.scheduleId,
@@ -44,27 +68,33 @@ export default function transformDomainSchedulesCreateFormToBody(
     endTime: formData.endTime || undefined,
     jitterSeconds: formData.jitterSeconds,
 
-    overlapPolicy: formData.overlapPolicy,
+    overlapPolicy,
     catchUpPolicy: formData.catchUpPolicy,
-    catchUpWindowSeconds: formData.catchUpWindowSeconds,
+    ...(includeCatchUpWindow &&
+    formData.catchUpWindowDays !== undefined
+      ? {
+          catchUpWindowSeconds:
+            formData.catchUpWindowDays * SECONDS_PER_DAY,
+        }
+      : {}),
     pauseOnFailure: formData.pauseOnFailure ?? false,
-    bufferLimit: formData.bufferLimit,
-    concurrencyLimit: formData.concurrencyLimit,
+    ...(includeBufferLimit ? { bufferLimit: formData.bufferLimit } : {}),
+    ...(includeConcurrencyLimit
+      ? { concurrencyLimit: formData.concurrencyLimit }
+      : {}),
 
     startWorkflow: {
       workflowType: { name: formData.workflowType.name.trim() },
       taskList: { name: formData.taskList.name.trim() },
       workerSDKLanguage: formData.workerSDKLanguage,
       ...(parsedInput && parsedInput.length > 0 ? { input: parsedInput } : {}),
-      workflowIdPrefix: formData.workflowIdPrefix ?? '',
+      workflowIdPrefix: formData.workflowIdPrefix?.trim() ?? '',
       executionStartToCloseTimeoutSeconds:
         formData.executionStartToCloseTimeoutSeconds,
       taskStartToCloseTimeoutSeconds: formData.taskStartToCloseTimeoutSeconds,
       ...(retryPolicy ? { retryPolicy } : {}),
-      memo: safeParseJson(formData.memo),
-      searchAttributes: safeParseJson(formData.searchAttributes) as
-        | Record<string, string | number | boolean>
-        | undefined,
+      memo: formData.memo?.trim() ? JSON.parse(formData.memo) : undefined,
+      searchAttributes: searchAttributesObject,
     },
   };
 }

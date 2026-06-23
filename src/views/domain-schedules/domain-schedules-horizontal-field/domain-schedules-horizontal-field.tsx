@@ -11,11 +11,13 @@ export default function DomainSchedulesHorizontalField({
   label,
   description,
   htmlFor,
+  hint,
   error,
+  grouped = false,
   children,
 }: Props) {
   return (
-    <styled.FieldRow>
+    <styled.FieldRow $grouped={grouped}>
       <styled.FieldLabelColumn>
         {htmlFor ? (
           <styled.FieldLabel htmlFor={htmlFor}>{label}</styled.FieldLabel>
@@ -33,6 +35,7 @@ export default function DomainSchedulesHorizontalField({
         >
           {children}
         </FormControl>
+        {hint ? <styled.FieldHint>{hint}</styled.FieldHint> : null}
       </styled.FieldControlColumn>
     </styled.FieldRow>
   );

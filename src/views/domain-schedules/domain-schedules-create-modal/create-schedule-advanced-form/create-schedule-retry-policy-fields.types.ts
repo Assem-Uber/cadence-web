@@ -10,5 +10,4 @@ export type Props = {
   control: Control<DomainSchedulesCreateFormData>;
   clearErrors: UseFormClearErrors<DomainSchedulesCreateFormData>;
   fieldErrors: FieldErrors<DomainSchedulesCreateFormData>;
-  cluster: string;
 };

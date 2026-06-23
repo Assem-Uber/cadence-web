@@ -14,6 +14,7 @@ import useCreateSchedule from '@/views/shared/hooks/use-create-schedule/use-crea
 import DomainSchedulesCreateForm from '../domain-schedules-create-form/domain-schedules-create-form';
 import DomainSchedulesCreateSuccessMsg from '../domain-schedules-create-success-msg/domain-schedules-create-success-msg';
 
+import { CREATE_SCHEDULE_ADVANCED_FORM_DEFAULTS } from './create-schedule-advanced-form/create-schedule-advanced-form.constants';
 import { overrides, styled } from './domain-schedules-create-modal.styles';
 import {
   type DomainSchedulesCreateFormData,
@@ -43,6 +44,7 @@ export default function DomainSchedulesCreateModal({
       resolver: zodResolver(createScheduleFormSchema),
       mode: 'onSubmit',
       reValidateMode: 'onChange',
+      defaultValues: CREATE_SCHEDULE_ADVANCED_FORM_DEFAULTS,
     });
 
   useEffect(() => {
@@ -107,7 +109,12 @@ export default function DomainSchedulesCreateModal({
               </Banner>
             </div>
           )}
-          <DomainSchedulesCreateForm control={control} trigger={trigger} />
+          <DomainSchedulesCreateForm
+            control={control}
+            clearErrors={clearErrors}
+            trigger={trigger}
+            cluster={cluster}
+          />
         </styled.ModalBody>
         <styled.ModalFooter>
           <ModalButton

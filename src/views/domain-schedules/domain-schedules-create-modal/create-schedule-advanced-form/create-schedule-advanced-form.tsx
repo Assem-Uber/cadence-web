@@ -1,32 +1,79 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 
+import { ScheduleCatchUpPolicy } from '@/__generated__/proto-ts/uber/cadence/api/v1/ScheduleCatchUpPolicy';
+import { ScheduleOverlapPolicy } from '@/__generated__/proto-ts/uber/cadence/api/v1/ScheduleOverlapPolicy';
 import { StatefulPanel } from 'baseui/accordion';
 import { Button } from 'baseui/button';
+import { DatePicker } from 'baseui/datepicker';
 import { mergeOverrides } from 'baseui/helpers/overrides';
 import { Input } from 'baseui/input';
+import { Radio, RadioGroup } from 'baseui/radio';
 import { Select } from 'baseui/select';
 import { Textarea } from 'baseui/textarea';
 import { LabelXSmall } from 'baseui/typography';
-import { Controller, useFormState } from 'react-hook-form';
+import { Controller, useWatch } from 'react-hook-form';
 import { MdExpandLess, MdExpandMore } from 'react-icons/md';
 
 import useStyletronClasses from '@/hooks/use-styletron-classes';
+import useSearchAttributes from '@/views/shared/hooks/use-search-attributes/use-search-attributes';
 import DomainSchedulesHorizontalField from '@/views/domain-schedules/domain-schedules-horizontal-field/domain-schedules-horizontal-field';
-// TODO(refactor): getFieldErrorMessage imported from start-workflow helpers — extract to shared utils
+import { cssStyles as horizontalFieldCssStyles } from '@/views/domain-schedules/domain-schedules-horizontal-field/domain-schedules-horizontal-field.styles';
 import getFieldErrorMessage from '@/views/workflow-actions/workflow-action-start-form/helpers/get-field-error-message';
+import getSearchAttributesErrorMessage from '@/views/workflow-actions/workflow-action-start-form/helpers/get-search-attributes-error-message';
+import WorkflowActionsSearchAttributes from '@/views/workflow-actions/workflow-actions-search-attributes/workflow-actions-search-attributes';
+
+import CreateScheduleRetryPolicyFields from './create-schedule-retry-policy-fields';
 
 import {
   CATCH_UP_POLICY_OPTIONS,
+  DEFAULT_BUFFER_LIMIT,
+  DEFAULT_CATCH_UP_POLICY,
+  DEFAULT_CATCH_UP_WINDOW_DAYS,
+  DEFAULT_OVERLAP_POLICY,
+  MAX_CATCH_UP_WINDOW_DAYS,
   OVERLAP_POLICY_OPTIONS,
 } from './create-schedule-advanced-form.constants';
 import { cssStyles, overrides } from './create-schedule-advanced-form.styles';
 import { type Props } from './create-schedule-advanced-form.types';
 
-export default function CreateScheduleAdvancedForm({ control }: Props) {
-  const { cls } = useStyletronClasses(cssStyles);
-  const { errors: fieldErrors } = useFormState({ control });
+export default function CreateScheduleAdvancedForm({
+  control,
+  clearErrors,
+  fieldErrors,
+  cluster,
+}: Props) {
+  const { cls } = useStyletronClasses({
+    ...cssStyles,
+    ...horizontalFieldCssStyles,
+  });
+
+  const overlapPolicy = useWatch({ control, name: 'overlapPolicy' });
+  const catchUpPolicy = useWatch({
+    control,
+    name: 'catchUpPolicy',
+    defaultValue: DEFAULT_CATCH_UP_POLICY,
+  });
+
+  const { data: searchAttributesData, isLoading: isLoadingSearchAttributes } =
+    useSearchAttributes({ cluster, category: 'custom' });
+
+  const searchAttributesOptions = useMemo(() => {
+    return Object.entries(searchAttributesData?.keys || {}).map(
+      ([name, valueType]) => ({
+        name,
+        valueType,
+      })
+    );
+  }, [searchAttributesData?.keys]);
+
+  const showBufferLimit =
+    overlapPolicy === ScheduleOverlapPolicy.SCHEDULE_OVERLAP_POLICY_BUFFER;
+  const showConcurrencyLimit =
+    overlapPolicy === ScheduleOverlapPolicy.SCHEDULE_OVERLAP_POLICY_CONCURRENT;
+  const showCatchUpWindow =
+    catchUpPolicy !== ScheduleCatchUpPolicy.SCHEDULE_CATCH_UP_POLICY_SKIP;
 
   return (
     <StatefulPanel
@@ -50,8 +97,8 @@ export default function CreateScheduleAdvancedForm({ control }: Props) {
                 }
               >
                 {props.$expanded
-                  ? 'Hide advanced settings'
-                  : 'Show advanced settings'}
+                  ? 'Hide advanced configurations'
+                  : 'Show advanced configurations'}
               </Button>
               <div className={cls.divider} />
             </div>
@@ -60,17 +107,16 @@ export default function CreateScheduleAdvancedForm({ control }: Props) {
       })}
     >
       <>
-        {/* Schedule identity */}
         <DomainSchedulesHorizontalField
-          label="Schedule ID (optional)"
-          description="Unique identifier for the schedule. Server generates a UUID when omitted."
+          label="Schedule Id"
+          description="Unique name provided by users to name the schedule."
           htmlFor="create-schedule-form-schedule-id"
+          hint="If left empty server will generate a unique GUID."
           error={getFieldErrorMessage(fieldErrors, 'scheduleId')}
         >
           <Controller
             name="scheduleId"
             control={control}
-            defaultValue={undefined}
             render={({ field: { ref, ...field } }) => (
               <Input
                 {...field}
@@ -78,75 +124,280 @@ export default function CreateScheduleAdvancedForm({ control }: Props) {
                 id="create-schedule-form-schedule-id"
                 // @ts-expect-error - inputRef expects ref object while ref is a callback. It should support both.
                 inputRef={ref}
-                aria-label="Schedule ID"
+                aria-label="Schedule Id"
                 onChange={(e) => field.onChange(e.target.value || undefined)}
                 onBlur={field.onBlur}
                 error={Boolean(getFieldErrorMessage(fieldErrors, 'scheduleId'))}
                 size="compact"
-                placeholder="Leave blank to auto-generate"
+                placeholder="Add schedule id"
               />
             )}
           />
         </DomainSchedulesHorizontalField>
 
-        {/* Spec: start/end/jitter */}
         <DomainSchedulesHorizontalField
-          label="Start Time (optional)"
-          description="Earliest time the schedule may trigger workflows."
-          htmlFor="create-schedule-form-start-time"
-          error={getFieldErrorMessage(fieldErrors, 'startTime')}
+          label="Overlap policy options"
+          description="Define what happens when a new execution is scheduled while a previous one is still running."
+          error={getFieldErrorMessage(fieldErrors, 'overlapPolicy')}
         >
           <Controller
-            name="startTime"
+            name="overlapPolicy"
             control={control}
-            render={({ field: { ref, ...field } }) => (
-              <Input
+            defaultValue={DEFAULT_OVERLAP_POLICY}
+            render={({ field: { value, onChange, ref, ...field } }) => (
+              <Select
                 {...field}
-                value={field.value ?? ''}
-                id="create-schedule-form-start-time"
-                // @ts-expect-error - inputRef expects ref object while ref is a callback. It should support both.
                 inputRef={ref}
-                aria-label="Start Time"
-                onChange={(e) => field.onChange(e.target.value || undefined)}
-                onBlur={field.onBlur}
-                error={Boolean(getFieldErrorMessage(fieldErrors, 'startTime'))}
+                aria-label="Overlap policy options"
+                options={OVERLAP_POLICY_OPTIONS}
+                value={[{ id: value ?? DEFAULT_OVERLAP_POLICY }]}
+                onChange={(params) => {
+                  onChange(params.value[0]?.id ?? DEFAULT_OVERLAP_POLICY);
+                  clearErrors(['bufferLimit', 'concurrencyLimit']);
+                }}
+                error={Boolean(
+                  getFieldErrorMessage(fieldErrors, 'overlapPolicy')
+                )}
                 size="compact"
-                placeholder="2025-01-01T00:00:00Z"
+                clearable={false}
               />
             )}
           />
         </DomainSchedulesHorizontalField>
 
+        {(showBufferLimit || showConcurrencyLimit) && (
+          <div className={cls.dependentFieldGroup}>
+            {showBufferLimit && (
+              <DomainSchedulesHorizontalField
+                grouped
+                label="Buffer limit"
+              description="Max buffer size limit"
+              htmlFor="create-schedule-form-buffer-limit"
+              hint="Default buffer limit is 0 (unlimited)"
+              error={getFieldErrorMessage(fieldErrors, 'bufferLimit')}
+            >
+              <Controller
+                name="bufferLimit"
+                control={control}
+                defaultValue={DEFAULT_BUFFER_LIMIT}
+                render={({ field: { ref, ...field } }) => (
+                  <Input
+                    {...field}
+                    id="create-schedule-form-buffer-limit"
+                    value={field.value ?? DEFAULT_BUFFER_LIMIT}
+                    // @ts-expect-error - inputRef expects ref object while ref is a callback. It should support both.
+                    inputRef={ref}
+                    aria-label="Buffer limit"
+                    type="number"
+                    min={0}
+                    onChange={(e) =>
+                      field.onChange(
+                        e.target.value !== ''
+                          ? parseInt(e.target.value, 10)
+                          : undefined
+                      )
+                    }
+                    onBlur={field.onBlur}
+                    error={Boolean(
+                      getFieldErrorMessage(fieldErrors, 'bufferLimit')
+                    )}
+                    size="compact"
+                  />
+                )}
+              />
+            </DomainSchedulesHorizontalField>
+          )}
+
+          {showConcurrencyLimit && (
+            <DomainSchedulesHorizontalField
+              grouped
+              label="Concurrency limit"
+              description="Maximum number of workflow runs that may run concurrently."
+              htmlFor="create-schedule-form-concurrency-limit"
+              error={getFieldErrorMessage(fieldErrors, 'concurrencyLimit')}
+            >
+              <Controller
+                name="concurrencyLimit"
+                control={control}
+                render={({ field: { ref, ...field } }) => (
+                  <Input
+                    {...field}
+                    id="create-schedule-form-concurrency-limit"
+                    value={field.value ?? DEFAULT_BUFFER_LIMIT}
+                    // @ts-expect-error - inputRef expects ref object while ref is a callback. It should support both.
+                    inputRef={ref}
+                    aria-label="Concurrency limit"
+                    type="number"
+                    min={0}
+                    onChange={(e) =>
+                      field.onChange(
+                        e.target.value !== ''
+                          ? parseInt(e.target.value, 10)
+                          : undefined
+                      )
+                    }
+                    onBlur={field.onBlur}
+                    error={Boolean(
+                      getFieldErrorMessage(fieldErrors, 'concurrencyLimit')
+                    )}
+                    size="compact"
+                  />
+                )}
+              />
+            </DomainSchedulesHorizontalField>
+            )}
+          </div>
+        )}
+
         <DomainSchedulesHorizontalField
-          label="End Time (optional)"
-          description="Latest time the schedule may trigger workflows."
-          htmlFor="create-schedule-form-end-time"
-          error={getFieldErrorMessage(fieldErrors, 'endTime')}
+          label="Catch-up policy"
+          description="Catch-up policy determines how to handle missed runs when unpausing a schedule."
+          error={getFieldErrorMessage(fieldErrors, 'catchUpPolicy')}
         >
           <Controller
-            name="endTime"
+            name="catchUpPolicy"
             control={control}
-            render={({ field: { ref, ...field } }) => (
-              <Input
+            defaultValue={DEFAULT_CATCH_UP_POLICY}
+            render={({ field: { value, onChange, ref, ...field } }) => (
+              <RadioGroup
                 {...field}
-                value={field.value ?? ''}
-                id="create-schedule-form-end-time"
                 // @ts-expect-error - inputRef expects ref object while ref is a callback. It should support both.
                 inputRef={ref}
-                aria-label="End Time"
-                onChange={(e) => field.onChange(e.target.value || undefined)}
-                onBlur={field.onBlur}
-                error={Boolean(getFieldErrorMessage(fieldErrors, 'endTime'))}
-                size="compact"
-                placeholder="2025-12-31T23:59:59Z"
-              />
+                aria-label="Catch-up policy"
+                value={value ?? DEFAULT_CATCH_UP_POLICY}
+                onChange={(e) => {
+                  onChange(e.currentTarget.value);
+                  clearErrors('catchUpWindowDays');
+                }}
+                error={Boolean(
+                  getFieldErrorMessage(fieldErrors, 'catchUpPolicy')
+                )}
+                align="horizontal"
+              >
+                {CATCH_UP_POLICY_OPTIONS.map((option) => (
+                  <Radio
+                    key={option.id}
+                    value={option.id}
+                    overrides={overrides.catchUpPolicyRadio}
+                  >
+                    {option.label}
+                  </Radio>
+                ))}
+              </RadioGroup>
             )}
           />
         </DomainSchedulesHorizontalField>
 
+        {showCatchUpWindow && (
+          <div className={cls.dependentFieldGroup}>
+            <DomainSchedulesHorizontalField
+              grouped
+              label="Catch-up window"
+              description="Catchup duration for which catchup policy applies."
+              htmlFor="create-schedule-form-catchup-window"
+              hint={`Default is ${DEFAULT_CATCH_UP_WINDOW_DAYS} days and max allowed is ${MAX_CATCH_UP_WINDOW_DAYS} days`}
+              error={getFieldErrorMessage(fieldErrors, 'catchUpWindowDays')}
+            >
+              <Controller
+                name="catchUpWindowDays"
+                control={control}
+                defaultValue={DEFAULT_CATCH_UP_WINDOW_DAYS}
+                render={({ field: { ref, ...field } }) => (
+                  <Input
+                    {...field}
+                    id="create-schedule-form-catchup-window"
+                    value={field.value ?? DEFAULT_CATCH_UP_WINDOW_DAYS}
+                    // @ts-expect-error - inputRef expects ref object while ref is a callback. It should support both.
+                    inputRef={ref}
+                    aria-label="Catch-up window"
+                    type="number"
+                    min={1}
+                    max={MAX_CATCH_UP_WINDOW_DAYS}
+                    onChange={(e) =>
+                      field.onChange(
+                        e.target.value !== ''
+                          ? parseInt(e.target.value, 10)
+                          : undefined
+                      )
+                    }
+                    onBlur={field.onBlur}
+                    error={Boolean(
+                      getFieldErrorMessage(fieldErrors, 'catchUpWindowDays')
+                    )}
+                    size="compact"
+                    endEnhancer={<LabelXSmall>Days</LabelXSmall>}
+                  />
+                )}
+              />
+            </DomainSchedulesHorizontalField>
+          </div>
+        )}
+
         <DomainSchedulesHorizontalField
-          label="Jitter"
-          description="Random jitter added to each trigger time to spread load."
+          label="Schedule period"
+          description="When the schedule should start and stop creating workflows."
+        >
+          <div className={cls.schedulePeriodRow}>
+            <div className={cls.schedulePeriodField}>
+              <div className={cls.schedulePeriodLabel}>Start date</div>
+              <Controller
+                name="startTime"
+                control={control}
+                render={({ field: { value, onChange, ref, ...field } }) => (
+                  <DatePicker
+                    {...field}
+                    // @ts-expect-error - inputRef expects ref object while ref is a callback. It should support both.
+                    inputRef={ref}
+                    aria-label="Start date"
+                    value={value ? [new Date(value)] : []}
+                    onChange={({ date }) => {
+                      const d = Array.isArray(date) ? date[0] : date;
+                      onChange(d ? d.toISOString() : undefined);
+                    }}
+                    error={Boolean(
+                      getFieldErrorMessage(fieldErrors, 'startTime')
+                    )}
+                    size="compact"
+                    timeSelectStart
+                    formatString="yyyy/MM/dd HH:mm"
+                    placeholder="Select start date"
+                    clearable
+                  />
+                )}
+              />
+            </div>
+            <div className={cls.schedulePeriodField}>
+              <div className={cls.schedulePeriodLabel}>End date</div>
+              <Controller
+                name="endTime"
+                control={control}
+                render={({ field: { value, onChange, ref, ...field } }) => (
+                  <DatePicker
+                    {...field}
+                    // @ts-expect-error - inputRef expects ref object while ref is a callback. It should support both.
+                    inputRef={ref}
+                    aria-label="End date"
+                    value={value ? [new Date(value)] : []}
+                    onChange={({ date }) => {
+                      const d = Array.isArray(date) ? date[0] : date;
+                      onChange(d ? d.toISOString() : undefined);
+                    }}
+                    error={Boolean(getFieldErrorMessage(fieldErrors, 'endTime'))}
+                    size="compact"
+                    timeSelectStart
+                    formatString="yyyy/MM/dd HH:mm"
+                    placeholder="Select end date"
+                    clearable
+                  />
+                )}
+              />
+            </div>
+          </div>
+        </DomainSchedulesHorizontalField>
+
+        <DomainSchedulesHorizontalField
+          label="Jitter duration"
+          description="Time range to distribute starting workflows across. This helps avoiding burst of workflow creations in a single point of time."
           htmlFor="create-schedule-form-jitter"
           error={getFieldErrorMessage(fieldErrors, 'jitterSeconds')}
         >
@@ -160,12 +411,14 @@ export default function CreateScheduleAdvancedForm({ control }: Props) {
                 value={field.value ?? ''}
                 // @ts-expect-error - inputRef expects ref object while ref is a callback. It should support both.
                 inputRef={ref}
-                aria-label="Jitter"
+                aria-label="Jitter duration"
                 type="number"
                 min={0}
                 onChange={(e) =>
                   field.onChange(
-                    e.target.value !== '' ? parseFloat(e.target.value) : undefined
+                    e.target.value !== ''
+                      ? parseFloat(e.target.value)
+                      : undefined
                   )
                 }
                 onBlur={field.onBlur}
@@ -173,104 +426,7 @@ export default function CreateScheduleAdvancedForm({ control }: Props) {
                   getFieldErrorMessage(fieldErrors, 'jitterSeconds')
                 )}
                 size="compact"
-                placeholder="0"
-                endEnhancer={<LabelXSmall>Seconds</LabelXSmall>}
-              />
-            )}
-          />
-        </DomainSchedulesHorizontalField>
-
-        {/* Policies */}
-        <DomainSchedulesHorizontalField
-          label="Overlap Policy"
-          description="How to handle a trigger when the previous workflow run is still running."
-          htmlFor="create-schedule-form-overlap-policy"
-          error={getFieldErrorMessage(fieldErrors, 'overlapPolicy')}
-        >
-          <Controller
-            name="overlapPolicy"
-            control={control}
-            render={({ field: { value, onChange, ref, ...field } }) => (
-              <Select
-                {...field}
-                inputRef={ref}
-                aria-label="Overlap Policy"
-                options={OVERLAP_POLICY_OPTIONS}
-                value={value ? [{ id: value }] : []}
-                onChange={(params) =>
-                  onChange(params.value[0]?.id ?? undefined)
-                }
-                error={Boolean(
-                  getFieldErrorMessage(fieldErrors, 'overlapPolicy')
-                )}
-                size="compact"
-                placeholder="Default (skip)"
-                clearable
-              />
-            )}
-          />
-        </DomainSchedulesHorizontalField>
-
-        <DomainSchedulesHorizontalField
-          label="Catch-up Policy"
-          description="How to handle missed triggers when the schedule resumes after a pause."
-          htmlFor="create-schedule-form-catchup-policy"
-          error={getFieldErrorMessage(fieldErrors, 'catchUpPolicy')}
-        >
-          <Controller
-            name="catchUpPolicy"
-            control={control}
-            render={({ field: { value, onChange, ref, ...field } }) => (
-              <Select
-                {...field}
-                inputRef={ref}
-                aria-label="Catch-up Policy"
-                options={CATCH_UP_POLICY_OPTIONS}
-                value={value ? [{ id: value }] : []}
-                onChange={(params) =>
-                  onChange(params.value[0]?.id ?? undefined)
-                }
-                error={Boolean(
-                  getFieldErrorMessage(fieldErrors, 'catchUpPolicy')
-                )}
-                size="compact"
-                placeholder="Default"
-                clearable
-              />
-            )}
-          />
-        </DomainSchedulesHorizontalField>
-
-        <DomainSchedulesHorizontalField
-          label="Catch-up Window"
-          description="How far back to look for missed triggers when resuming."
-          htmlFor="create-schedule-form-catchup-window"
-          error={getFieldErrorMessage(fieldErrors, 'catchUpWindowSeconds')}
-        >
-          <Controller
-            name="catchUpWindowSeconds"
-            control={control}
-            render={({ field: { ref, ...field } }) => (
-              <Input
-                {...field}
-                id="create-schedule-form-catchup-window"
-                value={field.value ?? ''}
-                // @ts-expect-error - inputRef expects ref object while ref is a callback. It should support both.
-                inputRef={ref}
-                aria-label="Catch-up Window"
-                type="number"
-                min={0}
-                onChange={(e) =>
-                  field.onChange(
-                    e.target.value !== '' ? parseInt(e.target.value, 10) : undefined
-                  )
-                }
-                onBlur={field.onBlur}
-                error={Boolean(
-                  getFieldErrorMessage(fieldErrors, 'catchUpWindowSeconds')
-                )}
-                size="compact"
-                placeholder="0"
+                placeholder="Add Jitter duration"
                 endEnhancer={<LabelXSmall>Seconds</LabelXSmall>}
               />
             )}
@@ -278,336 +434,86 @@ export default function CreateScheduleAdvancedForm({ control }: Props) {
         </DomainSchedulesHorizontalField>
 
         <DomainSchedulesHorizontalField
-          label="Buffer Limit"
-          description="Maximum number of workflow runs buffered before older ones are dropped."
-          htmlFor="create-schedule-form-buffer-limit"
-          error={getFieldErrorMessage(fieldErrors, 'bufferLimit')}
+          label="Workflow Id Prefix"
+          description="Prefix text to add into started workflows. Ids are formed as `${Prefix}+{auto generated postfix}`."
+          htmlFor="create-schedule-form-workflow-id-prefix"
+          hint="If the prefix is not provided, scheduleId is used."
+          error={getFieldErrorMessage(fieldErrors, 'workflowIdPrefix')}
         >
           <Controller
-            name="bufferLimit"
+            name="workflowIdPrefix"
             control={control}
             render={({ field: { ref, ...field } }) => (
               <Input
                 {...field}
-                id="create-schedule-form-buffer-limit"
                 value={field.value ?? ''}
+                id="create-schedule-form-workflow-id-prefix"
                 // @ts-expect-error - inputRef expects ref object while ref is a callback. It should support both.
                 inputRef={ref}
-                aria-label="Buffer Limit"
-                type="number"
-                min={0}
-                onChange={(e) =>
-                  field.onChange(
-                    e.target.value !== '' ? parseInt(e.target.value, 10) : undefined
-                  )
-                }
+                aria-label="Workflow Id Prefix"
+                onChange={(e) => field.onChange(e.target.value || undefined)}
                 onBlur={field.onBlur}
                 error={Boolean(
-                  getFieldErrorMessage(fieldErrors, 'bufferLimit')
+                  getFieldErrorMessage(fieldErrors, 'workflowIdPrefix')
                 )}
                 size="compact"
-                placeholder="No limit"
+                placeholder="Add workflow id prefix"
+              />
+            )}
+          />
+        </DomainSchedulesHorizontalField>
+
+        <CreateScheduleRetryPolicyFields
+          control={control}
+          clearErrors={clearErrors}
+          fieldErrors={fieldErrors}
+        />
+
+        <DomainSchedulesHorizontalField
+          label="Search attributes"
+          description="Searchable metadata assigned to the schedules"
+        >
+          <Controller
+            name="searchAttributes"
+            control={control}
+            defaultValue={[]}
+            render={({ field }) => (
+              <WorkflowActionsSearchAttributes
+                value={field.value}
+                onChange={field.onChange}
+                searchAttributes={searchAttributesOptions}
+                isLoading={isLoadingSearchAttributes}
+                error={getSearchAttributesErrorMessage(
+                  fieldErrors,
+                  'searchAttributes'
+                )}
+                showSectionBorder={false}
               />
             )}
           />
         </DomainSchedulesHorizontalField>
 
         <DomainSchedulesHorizontalField
-          label="Concurrency Limit"
-          description="Maximum number of workflow runs that may run concurrently."
-          htmlFor="create-schedule-form-concurrency-limit"
-          error={getFieldErrorMessage(fieldErrors, 'concurrencyLimit')}
-        >
-          <Controller
-            name="concurrencyLimit"
-            control={control}
-            render={({ field: { ref, ...field } }) => (
-              <Input
-                {...field}
-                id="create-schedule-form-concurrency-limit"
-                value={field.value ?? ''}
-                // @ts-expect-error - inputRef expects ref object while ref is a callback. It should support both.
-                inputRef={ref}
-                aria-label="Concurrency Limit"
-                type="number"
-                min={0}
-                onChange={(e) =>
-                  field.onChange(
-                    e.target.value !== '' ? parseInt(e.target.value, 10) : undefined
-                  )
-                }
-                onBlur={field.onBlur}
-                error={Boolean(
-                  getFieldErrorMessage(fieldErrors, 'concurrencyLimit')
-                )}
-                size="compact"
-                placeholder="No limit"
-              />
-            )}
-          />
-        </DomainSchedulesHorizontalField>
-
-        {/* Retry policy */}
-        <DomainSchedulesHorizontalField
-          label="Initial Retry Interval"
-          description="Starting backoff interval for the first retry."
-          htmlFor="create-schedule-form-retry-initial"
-          error={getFieldErrorMessage(
-            fieldErrors,
-            'retryPolicy.initialIntervalSeconds'
-          )}
-        >
-          <Controller
-            name="retryPolicy.initialIntervalSeconds"
-            control={control}
-            render={({ field: { ref, ...field } }) => (
-              <Input
-                {...field}
-                id="create-schedule-form-retry-initial"
-                value={field.value ?? ''}
-                // @ts-expect-error - inputRef expects ref object while ref is a callback. It should support both.
-                inputRef={ref}
-                aria-label="Initial Retry Interval"
-                type="number"
-                min={1}
-                onChange={(e) =>
-                  field.onChange(
-                    e.target.value !== '' ? parseFloat(e.target.value) : undefined
-                  )
-                }
-                onBlur={field.onBlur}
-                error={Boolean(
-                  getFieldErrorMessage(
-                    fieldErrors,
-                    'retryPolicy.initialIntervalSeconds'
-                  )
-                )}
-                size="compact"
-                placeholder="e.g. 1"
-                endEnhancer={<LabelXSmall>Seconds</LabelXSmall>}
-              />
-            )}
-          />
-        </DomainSchedulesHorizontalField>
-
-        <DomainSchedulesHorizontalField
-          label="Retry Backoff Coefficient"
-          description="Multiplier applied to the retry interval on each attempt."
-          htmlFor="create-schedule-form-retry-backoff"
-          error={getFieldErrorMessage(
-            fieldErrors,
-            'retryPolicy.backoffCoefficient'
-          )}
-        >
-          <Controller
-            name="retryPolicy.backoffCoefficient"
-            control={control}
-            render={({ field: { ref, ...field } }) => (
-              <Input
-                {...field}
-                id="create-schedule-form-retry-backoff"
-                value={field.value ?? ''}
-                // @ts-expect-error - inputRef expects ref object while ref is a callback. It should support both.
-                inputRef={ref}
-                aria-label="Retry Backoff Coefficient"
-                type="number"
-                min={1}
-                step={0.1}
-                onChange={(e) =>
-                  field.onChange(
-                    e.target.value !== '' ? parseFloat(e.target.value) : undefined
-                  )
-                }
-                onBlur={field.onBlur}
-                error={Boolean(
-                  getFieldErrorMessage(
-                    fieldErrors,
-                    'retryPolicy.backoffCoefficient'
-                  )
-                )}
-                size="compact"
-                placeholder="e.g. 2"
-              />
-            )}
-          />
-        </DomainSchedulesHorizontalField>
-
-        <DomainSchedulesHorizontalField
-          label="Maximum Retry Interval"
-          description="Upper bound on the retry interval after backoff."
-          htmlFor="create-schedule-form-retry-max-interval"
-          error={getFieldErrorMessage(
-            fieldErrors,
-            'retryPolicy.maximumIntervalSeconds'
-          )}
-        >
-          <Controller
-            name="retryPolicy.maximumIntervalSeconds"
-            control={control}
-            render={({ field: { ref, ...field } }) => (
-              <Input
-                {...field}
-                id="create-schedule-form-retry-max-interval"
-                value={field.value ?? ''}
-                // @ts-expect-error - inputRef expects ref object while ref is a callback. It should support both.
-                inputRef={ref}
-                aria-label="Maximum Retry Interval"
-                type="number"
-                min={1}
-                onChange={(e) =>
-                  field.onChange(
-                    e.target.value !== '' ? parseFloat(e.target.value) : undefined
-                  )
-                }
-                onBlur={field.onBlur}
-                error={Boolean(
-                  getFieldErrorMessage(
-                    fieldErrors,
-                    'retryPolicy.maximumIntervalSeconds'
-                  )
-                )}
-                size="compact"
-                placeholder="No limit"
-                endEnhancer={<LabelXSmall>Seconds</LabelXSmall>}
-              />
-            )}
-          />
-        </DomainSchedulesHorizontalField>
-
-        <DomainSchedulesHorizontalField
-          label="Retry Expiration Interval"
-          description="Total time after which retries stop regardless of attempt count."
-          htmlFor="create-schedule-form-retry-expiry"
-          error={getFieldErrorMessage(
-            fieldErrors,
-            'retryPolicy.expirationIntervalSeconds'
-          )}
-        >
-          <Controller
-            name="retryPolicy.expirationIntervalSeconds"
-            control={control}
-            render={({ field: { ref, ...field } }) => (
-              <Input
-                {...field}
-                id="create-schedule-form-retry-expiry"
-                value={field.value ?? ''}
-                // @ts-expect-error - inputRef expects ref object while ref is a callback. It should support both.
-                inputRef={ref}
-                aria-label="Retry Expiration Interval"
-                type="number"
-                min={1}
-                onChange={(e) =>
-                  field.onChange(
-                    e.target.value !== '' ? parseFloat(e.target.value) : undefined
-                  )
-                }
-                onBlur={field.onBlur}
-                error={Boolean(
-                  getFieldErrorMessage(
-                    fieldErrors,
-                    'retryPolicy.expirationIntervalSeconds'
-                  )
-                )}
-                size="compact"
-                placeholder="No limit"
-                endEnhancer={<LabelXSmall>Seconds</LabelXSmall>}
-              />
-            )}
-          />
-        </DomainSchedulesHorizontalField>
-
-        <DomainSchedulesHorizontalField
-          label="Maximum Retry Attempts"
-          description="Maximum number of retry attempts. Zero means unlimited."
-          htmlFor="create-schedule-form-retry-max-attempts"
-          error={getFieldErrorMessage(
-            fieldErrors,
-            'retryPolicy.maximumAttempts'
-          )}
-        >
-          <Controller
-            name="retryPolicy.maximumAttempts"
-            control={control}
-            render={({ field: { ref, ...field } }) => (
-              <Input
-                {...field}
-                id="create-schedule-form-retry-max-attempts"
-                value={field.value ?? ''}
-                // @ts-expect-error - inputRef expects ref object while ref is a callback. It should support both.
-                inputRef={ref}
-                aria-label="Maximum Retry Attempts"
-                type="number"
-                min={0}
-                onChange={(e) =>
-                  field.onChange(
-                    e.target.value !== '' ? parseInt(e.target.value, 10) : undefined
-                  )
-                }
-                onBlur={field.onBlur}
-                error={Boolean(
-                  getFieldErrorMessage(
-                    fieldErrors,
-                    'retryPolicy.maximumAttempts'
-                  )
-                )}
-                size="compact"
-                placeholder="0 (unlimited)"
-              />
-            )}
-          />
-        </DomainSchedulesHorizontalField>
-
-        {/* Memo and search attributes */}
-        <DomainSchedulesHorizontalField
-          label="Memo (optional)"
-          description="Arbitrary JSON key-value pairs attached to each workflow run."
+          label="Memo"
+          description="Metadata assigned to the workflows (JSON string)"
           error={getFieldErrorMessage(fieldErrors, 'memo')}
         >
           <Controller
             name="memo"
             control={control}
+            defaultValue=""
             render={({ field: { ref, ...field } }) => (
               <Textarea
                 {...field}
-                value={field.value ?? ''}
                 // @ts-expect-error - inputRef expects ref object while ref is a callback. It should support both.
                 inputRef={ref}
                 aria-label="Memo"
-                onChange={(e) => field.onChange(e.target.value || undefined)}
+                onChange={(e) => field.onChange(e.target.value)}
                 overrides={overrides.jsonInput}
                 onBlur={field.onBlur}
                 error={Boolean(getFieldErrorMessage(fieldErrors, 'memo'))}
                 size="compact"
-                placeholder='{"key":"value"}'
-                rows={3}
-              />
-            )}
-          />
-        </DomainSchedulesHorizontalField>
-
-        <DomainSchedulesHorizontalField
-          label="Search Attributes (optional)"
-          description="Indexed JSON key-value pairs used for workflow search and filtering."
-          error={getFieldErrorMessage(fieldErrors, 'searchAttributes')}
-        >
-          <Controller
-            name="searchAttributes"
-            control={control}
-            render={({ field: { ref, ...field } }) => (
-              <Textarea
-                {...field}
-                value={field.value ?? ''}
-                // @ts-expect-error - inputRef expects ref object while ref is a callback. It should support both.
-                inputRef={ref}
-                aria-label="Search Attributes"
-                onChange={(e) => field.onChange(e.target.value || undefined)}
-                overrides={overrides.jsonInput}
-                onBlur={field.onBlur}
-                error={Boolean(
-                  getFieldErrorMessage(fieldErrors, 'searchAttributes')
-                )}
-                size="compact"
-                placeholder='{"customAttr":"value"}'
+                placeholder="Add schedules action memo"
                 rows={3}
               />
             )}

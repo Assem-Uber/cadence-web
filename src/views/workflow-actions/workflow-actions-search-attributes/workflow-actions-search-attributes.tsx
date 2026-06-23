@@ -31,6 +31,7 @@ export default function WorkflowActionsSearchAttributes({
   error,
   searchAttributes,
   addButtonText = 'Add search attribute',
+  showSectionBorder = true,
 }: Props) {
   const { cls } = useStyletronClasses(cssStyles);
 
@@ -255,7 +256,9 @@ export default function WorkflowActionsSearchAttributes({
   );
 
   return (
-    <div className={cls.container}>
+    <div
+      className={showSectionBorder ? cls.container : cls.containerFlat}
+    >
       {displayValue.map((item: SearchAttributeItem, index: number) => {
         const isEmptyRow = !item.key && !item.value;
         const isLastItem = displayValue.length === 1;

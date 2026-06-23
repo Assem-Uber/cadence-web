@@ -2,6 +2,11 @@ import { styled as createStyled, type Theme } from 'baseui';
 import { type FormControlOverrides } from 'baseui/form-control';
 import { type StyleObject } from 'styletron-react';
 
+import type {
+  StyletronCSSObject,
+  StyletronCSSObjectOf,
+} from '@/hooks/use-styletron-classes';
+
 export const overrides = {
   horizontalFieldFormControl: {
     ControlContainer: {
@@ -13,14 +18,20 @@ export const overrides = {
 };
 
 export const styled = {
-  FieldRow: createStyled(
+  FieldRow: createStyled<'div', { $grouped?: boolean }>(
     'div',
-    ({ $theme }: { $theme: Theme }): StyleObject => ({
+    ({
+      $theme,
+      $grouped,
+    }: {
+      $theme: Theme;
+      $grouped?: boolean;
+    }): StyleObject => ({
       display: 'flex',
       flexDirection: 'row',
       alignItems: 'flex-start',
       gap: $theme.sizing.scale600,
-      marginBottom: $theme.sizing.scale600,
+      marginBottom: $grouped ? 0 : $theme.sizing.scale600,
     })
   ),
   FieldLabelColumn: createStyled(
@@ -68,4 +79,26 @@ export const styled = {
       marginTop: $theme.sizing.scale200,
     })
   ),
+  FieldHint: createStyled(
+    'div',
+    ({ $theme }: { $theme: Theme }): StyleObject => ({
+      ...$theme.typography.font100,
+      color: $theme.colors.contentTertiary,
+      marginTop: $theme.sizing.scale200,
+    })
+  ),
 };
+
+const cssStylesObj = {
+  dependentFieldGroup: (theme: Theme) => ({
+    display: 'flex',
+    flexDirection: 'column',
+    gap: theme.sizing.scale400,
+    marginBottom: theme.sizing.scale600,
+    borderLeft: `2px solid ${theme.colors.borderOpaque}`,
+    paddingLeft: theme.sizing.scale600,
+  }),
+} satisfies StyletronCSSObject;
+
+export const cssStyles: StyletronCSSObjectOf<typeof cssStylesObj> =
+  cssStylesObj;

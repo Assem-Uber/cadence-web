@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { ScheduleCatchUpPolicy } from '@/__generated__/proto-ts/uber/cadence/api/v1/ScheduleCatchUpPolicy';
+import { ScheduleOverlapPolicy } from '@/__generated__/proto-ts/uber/cadence/api/v1/ScheduleOverlapPolicy';
 import { CRON_FIELD_ORDER } from '@/components/cron-schedule-input/cron-schedule-input.constants';
 import {
   SCHEDULE_CATCH_UP_POLICIES,
@@ -9,6 +11,12 @@ import {
 import { WORKER_SDK_LANGUAGES } from '@/route-handlers/start-workflow/start-workflow.constants';
 // TODO(refactor): schedule policy constants imported from create-schedule route handler — extract to shared location
 import { getCronFieldsError } from '@/views/workflow-actions/workflow-action-start-form/helpers/get-cron-fields-error';
+
+import {
+  DEFAULT_CATCH_UP_POLICY,
+  DEFAULT_OVERLAP_POLICY,
+  MAX_CATCH_UP_WINDOW_DAYS,
+} from '../create-schedule-advanced-form/create-schedule-advanced-form.constants';
 
 const cronExpressionFieldsSchema = z
   .object({
@@ -66,24 +74,7 @@ const cronExpressionFieldsSchema = z
     }
   });
 
-const retryPolicySchema = z
-  .object({
-    initialIntervalSeconds: z.number().positive('Must be positive').optional(),
-    backoffCoefficient: z.number().positive('Must be positive').optional(),
-    maximumIntervalSeconds: z.number().positive('Must be positive').optional(),
-    expirationIntervalSeconds: z
-      .number()
-      .positive('Must be positive')
-      .optional(),
-    maximumAttempts: z
-      .number()
-      .int('Must be an integer')
-      .nonnegative('Must be zero or positive')
-      .optional(),
-  })
-  .optional();
-
-export const createScheduleFormSchema = z.object({
+const baseSchema = z.object({
   // --- Main fields ---
   cronExpression: cronExpressionFieldsSchema,
   workflowType: z.object({
@@ -135,11 +126,20 @@ export const createScheduleFormSchema = z.object({
   startTime: z.string().optional(),
   endTime: z.string().optional(),
   jitterSeconds: z.number().nonnegative('Must be zero or positive').optional(),
-  overlapPolicy: z.enum(SCHEDULE_OVERLAP_POLICIES).optional(),
-  catchUpPolicy: z.enum(SCHEDULE_CATCH_UP_POLICIES).optional(),
-  catchUpWindowSeconds: z
+  overlapPolicy: z
+    .enum(SCHEDULE_OVERLAP_POLICIES)
+    .default(DEFAULT_OVERLAP_POLICY),
+  catchUpPolicy: z
+    .enum(SCHEDULE_CATCH_UP_POLICIES)
+    .default(DEFAULT_CATCH_UP_POLICY),
+  catchUpWindowDays: z
     .number()
-    .nonnegative('Must be zero or positive')
+    .int('Must be an integer')
+    .positive('Must be at least 1 day')
+    .max(
+      MAX_CATCH_UP_WINDOW_DAYS,
+      `Must be at most ${MAX_CATCH_UP_WINDOW_DAYS} days`
+    )
     .optional(),
   bufferLimit: z
     .number()
@@ -151,8 +151,120 @@ export const createScheduleFormSchema = z.object({
     .int('Must be an integer')
     .nonnegative('Must be zero or positive')
     .optional(),
-  retryPolicy: retryPolicySchema,
-  memo: z.string().optional(),
-  searchAttributes: z.string().optional(),
   workflowIdPrefix: z.string().optional(),
+  enableRetryPolicy: z.boolean().optional(),
+  limitRetries: z.enum(['ATTEMPTS', 'DURATION']).optional(),
+  retryPolicy: z
+    .object({
+      initialIntervalSeconds: z.string().optional(),
+      backoffCoefficient: z.string().optional(),
+      maximumIntervalSeconds: z.string().optional(),
+      maximumAttempts: z.string().optional(),
+      expirationIntervalSeconds: z.string().optional(),
+    })
+    .optional(),
+  memo: z
+    .string()
+    .optional()
+    .refine((val) => {
+      if (!val || val.trim() === '') return true;
+      try {
+        JSON.parse(val);
+        return true;
+      } catch {
+        return false;
+      }
+    }, 'Memo must be valid JSON Object'),
+  searchAttributes: z
+    .array(
+      z.object({
+        key: z.string().min(1, 'Attribute key is required'),
+        value: z.union([
+          z.string().min(1, 'Attribute value is required'),
+          z.number(),
+          z.boolean(),
+        ]),
+      })
+    )
+    .optional(),
+});
+
+export const createScheduleFormSchema = baseSchema.superRefine((data, ctx) => {
+  if (data.enableRetryPolicy) {
+    if (!data.retryPolicy?.initialIntervalSeconds) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Initial interval is required when retry policy is enabled',
+        path: ['retryPolicy', 'initialIntervalSeconds'],
+      });
+    }
+
+    if (!data.retryPolicy?.backoffCoefficient) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Backoff coefficient is required when retry policy is enabled',
+        path: ['retryPolicy', 'backoffCoefficient'],
+      });
+    }
+
+    if (
+      data.limitRetries === 'ATTEMPTS' &&
+      !data.retryPolicy?.maximumAttempts
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Maximum attempts is required when retries limit is ATTEMPTS',
+        path: ['retryPolicy', 'maximumAttempts'],
+      });
+    }
+
+    if (
+      data.limitRetries === 'DURATION' &&
+      !data.retryPolicy?.expirationIntervalSeconds
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          'Expiration interval is required when retries limit is DURATION',
+        path: ['retryPolicy', 'expirationIntervalSeconds'],
+      });
+    }
+  }
+
+  if (
+    data.overlapPolicy ===
+      ScheduleOverlapPolicy.SCHEDULE_OVERLAP_POLICY_BUFFER &&
+    data.bufferLimit === undefined
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Buffer limit is required when overlap policy is buffer limit',
+      path: ['bufferLimit'],
+    });
+  }
+
+  if (
+    data.overlapPolicy ===
+      ScheduleOverlapPolicy.SCHEDULE_OVERLAP_POLICY_CONCURRENT &&
+    data.concurrencyLimit === undefined
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message:
+        'Concurrency limit is required when overlap policy is concurrency limit',
+      path: ['concurrencyLimit'],
+    });
+  }
+
+  if (
+    data.catchUpPolicy !==
+      ScheduleCatchUpPolicy.SCHEDULE_CATCH_UP_POLICY_SKIP &&
+    data.catchUpWindowDays === undefined
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Catch-up window is required when catch-up policy is not skip',
+      path: ['catchUpWindowDays'],
+    });
+  }
 });

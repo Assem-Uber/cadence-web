@@ -19,4 +19,6 @@ export type Props = {
   error?: string | Array<Partial<Record<'key' | 'value', string>> | undefined>;
   searchAttributes: Array<SearchAttributeOption>;
   addButtonText?: string;
+  /** When false, omits the left indent border (e.g. nested horizontal form layouts). */
+  showSectionBorder?: boolean;
 };
