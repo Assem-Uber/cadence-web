@@ -134,6 +134,8 @@ export const createScheduleFormSchema = z
         message: 'Jitter seconds must be zero or positive',
       })
       .optional(),
+    startTime: z.string().datetime('Start time must be valid').optional(),
+    endTime: z.string().datetime('End time must be valid').optional(),
     workflowIdPrefix: z.string().optional(),
   })
   .superRefine((data, ctx) => {
@@ -184,5 +186,18 @@ export const createScheduleFormSchema = z
         message: 'Catch-up window is required',
         path: ['catchUpWindowDays'],
       });
+    }
+
+    if (data.startTime && data.endTime) {
+      const startMs = Date.parse(data.startTime);
+      const endMs = Date.parse(data.endTime);
+
+      if (startMs >= endMs) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Start date must be before end date',
+          path: ['startTime'],
+        });
+      }
     }
   });
