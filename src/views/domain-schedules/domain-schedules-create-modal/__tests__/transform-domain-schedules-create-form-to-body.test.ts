@@ -1,3 +1,4 @@
+import { ScheduleCatchUpPolicy } from '@/__generated__/proto-ts/uber/cadence/api/v1/ScheduleCatchUpPolicy';
 import { ScheduleOverlapPolicy } from '@/__generated__/proto-ts/uber/cadence/api/v1/ScheduleOverlapPolicy';
 
 import { type DomainSchedulesCreateFormData } from '../domain-schedules-create-modal.types';
@@ -17,8 +18,6 @@ describe(transformDomainSchedulesCreateFormToBody.name, () => {
     workerSDKLanguage: 'GO',
     executionStartToCloseTimeoutSeconds: 3600,
     taskStartToCloseTimeoutSeconds: 45,
-    pauseOnFailure: false,
-    overlapPolicy: ScheduleOverlapPolicy.SCHEDULE_OVERLAP_POLICY_SKIP_NEW,
   };
 
   it('maps form fields to create-schedule request body', () => {
@@ -26,7 +25,8 @@ describe(transformDomainSchedulesCreateFormToBody.name, () => {
 
     expect(result).toEqual({
       cronExpression: '0 9 * * *',
-      pauseOnFailure: false,
+      pauseOnFailure: undefined,
+      overlapPolicy: undefined,
       startWorkflow: {
         workflowType: { name: 'DemoWorkflow' },
         taskList: { name: 'demo-tl' },
@@ -34,7 +34,6 @@ describe(transformDomainSchedulesCreateFormToBody.name, () => {
         executionStartToCloseTimeoutSeconds: 3600,
         taskStartToCloseTimeoutSeconds: 45,
       },
-      overlapPolicy: ScheduleOverlapPolicy.SCHEDULE_OVERLAP_POLICY_SKIP_NEW,
     });
   });
 
@@ -108,5 +107,53 @@ describe(transformDomainSchedulesCreateFormToBody.name, () => {
     );
     expect(result.concurrencyLimit).toBe(7);
     expect(result.bufferLimit).toBeUndefined();
+  });
+
+  it('maps catch-up window days to seconds for non-skip catch-up policy', () => {
+    const result = transformDomainSchedulesCreateFormToBody({
+      ...baseForm,
+      catchUpPolicy: ScheduleCatchUpPolicy.SCHEDULE_CATCH_UP_POLICY_ONE,
+      catchUpWindowDays: '14',
+    });
+
+    expect(result.catchUpPolicy).toBe(
+      ScheduleCatchUpPolicy.SCHEDULE_CATCH_UP_POLICY_ONE
+    );
+    expect(result.catchUpWindowSeconds).toBe(14 * 86400);
+  });
+
+  it('omits catch-up window seconds for skip catch-up policy', () => {
+    const result = transformDomainSchedulesCreateFormToBody({
+      ...baseForm,
+      catchUpPolicy: ScheduleCatchUpPolicy.SCHEDULE_CATCH_UP_POLICY_SKIP,
+      catchUpWindowDays: '14',
+    });
+
+    expect(result.catchUpPolicy).toBe(
+      ScheduleCatchUpPolicy.SCHEDULE_CATCH_UP_POLICY_SKIP
+    );
+    expect(result.catchUpWindowSeconds).toBeUndefined();
+  });
+
+  it('omits catchUpPolicy when not set on form data', () => {
+    const result = transformDomainSchedulesCreateFormToBody(baseForm);
+
+    expect(result.catchUpPolicy).toBeUndefined();
+  });
+
+  it('omits buffer and concurrency limits when limit strings are empty', () => {
+    const bufferResult = transformDomainSchedulesCreateFormToBody({
+      ...baseForm,
+      overlapPolicy: ScheduleOverlapPolicy.SCHEDULE_OVERLAP_POLICY_BUFFER,
+      bufferLimit: '',
+    });
+    expect(bufferResult.bufferLimit).toBeUndefined();
+
+    const concurrentResult = transformDomainSchedulesCreateFormToBody({
+      ...baseForm,
+      overlapPolicy: ScheduleOverlapPolicy.SCHEDULE_OVERLAP_POLICY_CONCURRENT,
+      concurrencyLimit: '',
+    });
+    expect(concurrentResult.concurrencyLimit).toBeUndefined();
   });
 });
