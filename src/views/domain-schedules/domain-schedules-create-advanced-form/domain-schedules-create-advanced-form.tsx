@@ -18,6 +18,7 @@ import { useMemo } from 'react';
 
 import { ScheduleCatchUpPolicy } from '@/__generated__/proto-ts/uber/cadence/api/v1/ScheduleCatchUpPolicy';
 import { ScheduleOverlapPolicy } from '@/__generated__/proto-ts/uber/cadence/api/v1/ScheduleOverlapPolicy';
+import CreateScheduleRetryPolicyFields from '@/views/domain-schedules/create-schedule-retry-policy-fields/create-schedule-retry-policy-fields';
 import useSearchAttributes from '@/views/shared/hooks/use-search-attributes/use-search-attributes';
 import DomainSchedulesHorizontalField from '@/views/domain-schedules/domain-schedules-horizontal-field/domain-schedules-horizontal-field';
 // TODO(refactor): getSearchAttributesErrorMessage is imported from start-workflow helpers — extract to shared utils
@@ -46,6 +47,7 @@ export default function DomainSchedulesCreateAdvancedForm({
   fieldErrors,
   trigger,
   isSubmitted = false,
+  clearErrors,
   cluster,
 }: Props) {
   const { data: searchAttributesData, isLoading: isLoadingSearchAttributes } =
@@ -446,6 +448,12 @@ export default function DomainSchedulesCreateAdvancedForm({
             )}
           />
         </DomainSchedulesHorizontalField>
+
+        <CreateScheduleRetryPolicyFields
+          control={control}
+          clearErrors={clearErrors}
+          fieldErrors={fieldErrors}
+        />
 
         <DomainSchedulesHorizontalField
           label="Jitter duration"
