@@ -1,4 +1,5 @@
 import { HttpResponse } from 'msw';
+import { QueryClient } from '@tanstack/react-query';
 
 import { render, screen, userEvent, waitFor } from '@/test-utils/rtl';
 
@@ -134,6 +135,29 @@ describe(ScheduleActionsModalContent.name, () => {
         expect.objectContaining({ message: 'Schedule deleted.' })
       );
       expect(mockOnClose).toHaveBeenCalled();
+    });
+
+    it('does not invalidate describeSchedule after delete', async () => {
+      const invalidateQueriesSpy = jest.spyOn(
+        QueryClient.prototype,
+        'invalidateQueries'
+      );
+
+      const { user, waitForRequest } = setup({
+        actionConfig: mockScheduleActionsConfig[2],
+      });
+
+      await user.click(
+        screen.getByRole('button', { name: 'Delete schedule' })
+      );
+
+      await waitForRequest();
+
+      expect(invalidateQueriesSpy).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          queryKey: ['describeSchedule', mockScheduleParams],
+        })
+      );
     });
   });
 });

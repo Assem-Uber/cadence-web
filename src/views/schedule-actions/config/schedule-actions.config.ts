@@ -80,12 +80,12 @@ const deleteScheduleActionConfig: ScheduleAction<DeleteScheduleResponse> = {
   httpMethod: 'DELETE',
   renderSuccessMessage: () => 'Schedule deleted.',
   onSuccess: ({ queryClient, params, router }) => {
-    queryClient.invalidateQueries({
-      queryKey: ['listSchedules', { domain: params.domain, cluster: params.cluster }],
-    });
     router.push(
       `/domains/${encodeURIComponent(params.domain)}/${encodeURIComponent(params.cluster)}/schedules`
     );
+    queryClient.invalidateQueries({
+      queryKey: ['listSchedules', { domain: params.domain, cluster: params.cluster }],
+    });
   },
 };
 
