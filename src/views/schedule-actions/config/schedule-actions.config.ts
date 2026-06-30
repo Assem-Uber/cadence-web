@@ -76,7 +76,8 @@ const deleteScheduleActionConfig: ScheduleAction<DeleteScheduleResponse> = {
   icon: MdDeleteOutline,
   getRunnableStatus: () => 'RUNNABLE',
   apiRoute: (params) =>
-    `/api/domains/${encodeURIComponent(params.domain)}/${encodeURIComponent(params.cluster)}/schedules/${encodeURIComponent(params.scheduleId)}/delete`,
+    `/api/domains/${encodeURIComponent(params.domain)}/${encodeURIComponent(params.cluster)}/schedules/${encodeURIComponent(params.scheduleId)}`,
+  httpMethod: 'DELETE',
   renderSuccessMessage: () => 'Schedule deleted.',
   onSuccess: ({ queryClient, params, router }) => {
     queryClient.invalidateQueries({

@@ -72,7 +72,9 @@ export const mockDeleteActionConfig: ScheduleAction<DeleteScheduleResponse> = {
   },
   icon: MdDeleteOutline,
   getRunnableStatus: () => 'RUNNABLE',
-  apiRoute: mockActionApiRoute('delete'),
+  apiRoute: (params) =>
+    `/api/domains/${params.domain}/${params.cluster}/schedules/${params.scheduleId}`,
+  httpMethod: 'DELETE',
   renderSuccessMessage: () => 'Schedule deleted.',
   onSuccess: ({ router, params }) => {
     router.push(

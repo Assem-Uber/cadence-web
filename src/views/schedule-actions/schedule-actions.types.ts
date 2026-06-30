@@ -93,6 +93,7 @@ export type ScheduleAction<
     schedule: DescribeScheduleResponse
   ) => ScheduleActionRunnableStatus;
   apiRoute: (params: ScheduleActionInputParams) => string;
+  httpMethod?: 'POST' | 'DELETE';
   getConfirmSubmissionData?: () => SubmissionData;
   renderSuccessMessage: (
     props: ScheduleActionSuccessMessageProps<SubmissionData, Result>

@@ -104,7 +104,7 @@ describe(ScheduleActionsModalContent.name, () => {
       expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
     });
 
-    it('closes without POST when Cancel is clicked', async () => {
+    it('closes without DELETE when Cancel is clicked', async () => {
       const { user, mockOnClose } = setup({
         actionConfig: mockScheduleActionsConfig[2],
       });
@@ -114,7 +114,7 @@ describe(ScheduleActionsModalContent.name, () => {
       expect(mockEnqueue).not.toHaveBeenCalled();
     });
 
-    it('POSTs with empty body, navigates to list, and shows snackbar on success', async () => {
+    it('DELETEs with no body, navigates to list, and shows snackbar on success', async () => {
       const { user, mockOnClose, getLatestRequestBody, waitForRequest } =
         setup({ actionConfig: mockScheduleActionsConfig[2] });
 
@@ -123,7 +123,7 @@ describe(ScheduleActionsModalContent.name, () => {
       );
 
       await waitForRequest();
-      expect(getLatestRequestBody()).toEqual({});
+      expect(getLatestRequestBody()).toBeNull();
 
       await waitFor(() => {
         expect(mockPush).toHaveBeenCalledWith(
@@ -162,7 +162,7 @@ function setup({
     {
       endpointsMocks: [
         {
-          path: '/api/domains/:domain/:cluster/schedules/:scheduleId/:action',
+          path: '/api/domains/:domain/:cluster/schedules/:scheduleId/pause',
           httpMethod: 'POST',
           mockOnce: false,
           httpResolver: async ({ request }) => {
@@ -177,11 +177,19 @@ function setup({
               );
             }
 
-            if (request.url.endsWith('/delete')) {
-              return HttpResponse.json({} satisfies DeleteScheduleResponse);
-            }
-
             return HttpResponse.json({} satisfies PauseScheduleResponse);
+          },
+        },
+        {
+          path: '/api/domains/:domain/:cluster/schedules/:scheduleId',
+          httpMethod: 'DELETE',
+          mockOnce: false,
+          httpResolver: async ({ request }) => {
+            const text = await request.text();
+            latestRequestBody = text ? JSON.parse(text) : null;
+            requestPromiseResolve(null);
+
+            return HttpResponse.json({} satisfies DeleteScheduleResponse);
           },
         },
       ],

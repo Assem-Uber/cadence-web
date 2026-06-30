@@ -57,11 +57,16 @@ export default function ScheduleActionsModalContent<
         cluster,
         scheduleId,
         submissionData,
-      }: ScheduleActionInput<SubmissionData>) =>
-        request(action.apiRoute({ domain, cluster, scheduleId }), {
-          method: 'POST',
-          body: JSON.stringify(submissionData ?? {}),
-        }).then((res) => res.json() as Result),
+      }: ScheduleActionInput<SubmissionData>) => {
+        const httpMethod = action.httpMethod ?? 'POST';
+
+        return request(action.apiRoute({ domain, cluster, scheduleId }), {
+          method: httpMethod,
+          ...(httpMethod === 'POST'
+            ? { body: JSON.stringify(submissionData ?? {}) }
+            : {}),
+        }).then((res) => res.json() as Result);
+      },
       onSuccess: (result, mutationParams) => {
         queryClient.invalidateQueries({
           queryKey: ['describeSchedule', params],
