@@ -16,7 +16,7 @@ import { type DescribeScheduleResponse } from '@/route-handlers/describe-schedul
 
 import type SCHEDULE_ACTIONS_NON_RUNNABLE_STATUSES_CONFIG from './config/schedule-actions-non-runnable-statuses.config';
 
-export type ScheduleActionID = 'pause' | 'resume';
+export type ScheduleActionID = 'pause' | 'resume' | 'delete';
 
 export type ScheduleActionInputParams = {
   domain: string;

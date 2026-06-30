@@ -103,10 +103,14 @@ export default function ScheduleActionsModalContent<
 
   const Form = action.modal.form;
   const isSubmitDisabled = Object.keys(validationErrors).length > 0;
+  const modalTitle =
+    action.id === 'delete' ? 'Delete schedule' : `${action.label} schedule`;
+  const submitLabel =
+    action.id === 'delete' ? 'Delete schedule' : `${action.label} schedule`;
 
   return (
     <>
-      <styled.ModalHeader>{`${action.label} schedule`}</styled.ModalHeader>
+      <styled.ModalHeader>{modalTitle}</styled.ModalHeader>
       <form onSubmit={handleSubmit(onSubmit)}>
         <styled.ModalBody>
           {modalText}
@@ -162,7 +166,7 @@ export default function ScheduleActionsModalContent<
             isLoading={isPending || isSubmitting}
             disabled={isSubmitDisabled}
           >
-            {`${action.label} schedule`}
+            {submitLabel}
           </ModalButton>
         </styled.ModalFooter>
       </form>

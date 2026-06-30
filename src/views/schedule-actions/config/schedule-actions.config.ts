@@ -1,5 +1,6 @@
-import { MdPauseCircleOutline, MdPlayCircleOutline } from 'react-icons/md';
+import { MdDeleteOutline, MdPauseCircleOutline, MdPlayCircleOutline } from 'react-icons/md';
 
+import { type DeleteScheduleResponse } from '@/route-handlers/delete-schedule/delete-schedule.types';
 import { type PauseScheduleResponse } from '@/route-handlers/pause-schedule/pause-schedule.types';
 import { type UnpauseScheduleResponse } from '@/route-handlers/unpause-schedule/unpause-schedule.types';
 
@@ -60,9 +61,37 @@ const resumeScheduleActionConfig: ScheduleAction<
   renderSuccessMessage: () => 'Schedule has been resumed.',
 };
 
+const deleteScheduleActionConfig: ScheduleAction<DeleteScheduleResponse> = {
+  id: 'delete',
+  label: 'Delete',
+  subtitle: 'Delete a schedule',
+  modal: {
+    text: 'Deletes the schedule permanently. In-progress workflow runs are not affected.',
+    docsLink: {
+      text: 'Read more about schedules',
+      href: 'https://cadenceworkflow.io/docs/concepts/schedules',
+    },
+    withForm: false,
+  },
+  icon: MdDeleteOutline,
+  getRunnableStatus: () => 'RUNNABLE',
+  apiRoute: (params) =>
+    `/api/domains/${encodeURIComponent(params.domain)}/${encodeURIComponent(params.cluster)}/schedules/${encodeURIComponent(params.scheduleId)}/delete`,
+  renderSuccessMessage: () => 'Schedule deleted.',
+  onSuccess: ({ queryClient, params, router }) => {
+    queryClient.invalidateQueries({
+      queryKey: ['listSchedules', { domain: params.domain, cluster: params.cluster }],
+    });
+    router.push(
+      `/domains/${encodeURIComponent(params.domain)}/${encodeURIComponent(params.cluster)}/schedules`
+    );
+  },
+};
+
 const scheduleActionsConfig = [
   pauseScheduleActionConfig,
   resumeScheduleActionConfig,
+  deleteScheduleActionConfig,
 ];
 
 export default scheduleActionsConfig;

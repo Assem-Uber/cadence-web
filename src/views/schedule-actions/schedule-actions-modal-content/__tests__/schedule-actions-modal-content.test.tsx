@@ -3,6 +3,7 @@ import { HttpResponse } from 'msw';
 import { render, screen, userEvent, waitFor } from '@/test-utils/rtl';
 
 import { type PauseScheduleResponse } from '@/route-handlers/pause-schedule/pause-schedule.types';
+import { type DeleteScheduleResponse } from '@/route-handlers/delete-schedule/delete-schedule.types';
 
 import { mockScheduleActionsConfig } from '../../__fixtures__/schedule-actions-config';
 import { type ScheduleAction } from '../../schedule-actions.types';
@@ -87,6 +88,54 @@ describe(ScheduleActionsModalContent.name, () => {
     });
     expect(mockOnClose).not.toHaveBeenCalled();
   });
+
+  describe('delete action', () => {
+    it('renders confirmation copy with no form inputs', () => {
+      setup({ actionConfig: mockScheduleActionsConfig[2] });
+
+      expect(screen.getAllByText('Delete schedule').length).toBeGreaterThan(
+        0
+      );
+      expect(
+        screen.getByText(
+          'Deletes the schedule permanently. In-progress workflow runs are not affected.'
+        )
+      ).toBeInTheDocument();
+      expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    });
+
+    it('closes without POST when Cancel is clicked', async () => {
+      const { user, mockOnClose } = setup({
+        actionConfig: mockScheduleActionsConfig[2],
+      });
+
+      await user.click(screen.getByText('Cancel'));
+      expect(mockOnClose).toHaveBeenCalled();
+      expect(mockEnqueue).not.toHaveBeenCalled();
+    });
+
+    it('POSTs with empty body, navigates to list, and shows snackbar on success', async () => {
+      const { user, mockOnClose, getLatestRequestBody, waitForRequest } =
+        setup({ actionConfig: mockScheduleActionsConfig[2] });
+
+      await user.click(
+        screen.getByRole('button', { name: 'Delete schedule' })
+      );
+
+      await waitForRequest();
+      expect(getLatestRequestBody()).toEqual({});
+
+      await waitFor(() => {
+        expect(mockPush).toHaveBeenCalledWith(
+          '/domains/mock-domain/mock-cluster/schedules'
+        );
+      });
+      expect(mockEnqueue).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'Schedule deleted.' })
+      );
+      expect(mockOnClose).toHaveBeenCalled();
+    });
+  });
 });
 
 function setup({
@@ -126,6 +175,10 @@ function setup({
                 { message: 'Failed to pause schedule' },
                 { status: 500 }
               );
+            }
+
+            if (request.url.endsWith('/delete')) {
+              return HttpResponse.json({} satisfies DeleteScheduleResponse);
             }
 
             return HttpResponse.json({} satisfies PauseScheduleResponse);

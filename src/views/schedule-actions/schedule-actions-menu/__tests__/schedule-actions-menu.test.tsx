@@ -24,13 +24,16 @@ describe(ScheduleActionsMenu.name, () => {
     setup({ schedule: mockDescribeScheduleResponse });
 
     const menuButtons = screen.getAllByRole('button');
-    expect(menuButtons).toHaveLength(2);
+    expect(menuButtons).toHaveLength(3);
 
     expect(within(menuButtons[0]).getByText('Mock pause')).toBeInTheDocument();
     expect(menuButtons[0]).not.toBeDisabled();
 
     expect(within(menuButtons[1]).getByText('Mock resume')).toBeInTheDocument();
     expect(menuButtons[1]).toBeDisabled();
+
+    expect(within(menuButtons[2]).getByText('Mock delete')).toBeInTheDocument();
+    expect(menuButtons[2]).not.toBeDisabled();
   });
 
   it('disables pause and enables resume when schedule is paused', () => {
