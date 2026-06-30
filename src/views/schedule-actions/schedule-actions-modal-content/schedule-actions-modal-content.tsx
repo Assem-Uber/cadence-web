@@ -6,7 +6,7 @@ import { ModalButton } from 'baseui/modal';
 import { useSnackbar } from 'baseui/snackbar';
 import { useRouter } from 'next/navigation';
 import { type DefaultValues, type FieldValues, useForm } from 'react-hook-form';
-import { MdCheckCircle, MdErrorOutline, MdOpenInNew } from 'react-icons/md';
+import { MdCheckCircle, MdErrorOutline } from 'react-icons/md';
 
 import request from '@/utils/request';
 import { type RequestError } from '@/utils/request/request-error';
@@ -23,6 +23,7 @@ export default function ScheduleActionsModalContent<
 >({
   action,
   params,
+  schedule,
   onCloseModal,
   initialFormValues,
 }: Props<Result, FormData, SubmissionData>) {
@@ -43,7 +44,12 @@ export default function ScheduleActionsModalContent<
     resolver: action.modal.formSchema
       ? zodResolver(action.modal.formSchema)
       : undefined,
-    defaultValues: initialFormValues as DefaultValues<OptionalFormData>,
+    mode: 'onSubmit',
+    reValidateMode: 'onChange',
+    defaultValues: (initialFormValues ??
+      (action.modal.withForm
+        ? action.modal.initialFormValues
+        : undefined)) as DefaultValues<OptionalFormData>,
   });
 
   const { mutate, isPending, error } = useMutation<
@@ -90,16 +96,30 @@ export default function ScheduleActionsModalContent<
       ...params,
       submissionData: action.modal.withForm
         ? action.modal.transformFormDataToSubmission(data as FormData)
-        : (action.getConfirmSubmissionData?.() ??
-          (undefined as SubmissionData)),
+        : action.getConfirmSubmissionData?.() ?? (undefined as SubmissionData),
     });
   };
 
-  const modalText = Array.isArray(action.modal.text) ? (
-    action.modal.text.map((text, index) => <p key={index}>{text}</p>)
-  ) : (
-    <p>{action.modal.text}</p>
-  );
+  const modalText = action.modal.text ? (
+    Array.isArray(action.modal.text) ? (
+      action.modal.text.map((text, index) => <p key={index}>{text}</p>)
+    ) : (
+      <p>{action.modal.text}</p>
+    )
+  ) : null;
+
+  const modalBanner = action.modal.banner ? (
+    <Banner
+      hierarchy={HIERARCHY.low}
+      kind={action.modal.banner.kind}
+      overrides={overrides.contextBanner}
+      artwork={{
+        icon: action.modal.banner.icon,
+      }}
+    >
+      {action.modal.banner.render(schedule)}
+    </Banner>
+  ) : null;
 
   const Form = action.modal.form;
   const isSubmitDisabled = Object.keys(validationErrors).length > 0;
@@ -109,41 +129,45 @@ export default function ScheduleActionsModalContent<
       <styled.ModalHeader>{`${action.label} schedule`}</styled.ModalHeader>
       <form onSubmit={handleSubmit(onSubmit)}>
         <styled.ModalBody>
-          {modalText}
-          {action.modal.docsLink && (
-            <styled.Link
-              href={action.modal.docsLink.href}
-              target="_blank"
-              rel="noreferrer"
-            >
-              {action.modal.docsLink.text}
-              <MdOpenInNew />
-            </styled.Link>
-          )}
-          {action.modal.withForm && Form && (
-            <Form
-              formData={watch()}
-              fieldErrors={validationErrors}
-              clearErrors={clearErrors}
-              control={control}
-              trigger={trigger}
-              cluster={params.cluster}
-              domain={params.domain}
-              scheduleId={params.scheduleId}
-            />
-          )}
-          {error && (
-            <Banner
-              hierarchy={HIERARCHY.low}
-              kind={BANNER_KIND.negative}
-              overrides={overrides.banner}
-              artwork={{
-                icon: MdErrorOutline,
-              }}
-            >
-              {error.message}
-            </Banner>
-          )}
+          {modalBanner ? (
+            <styled.ContextBanner>{modalBanner}</styled.ContextBanner>
+          ) : null}
+          <styled.ModalBodyContent>
+            {modalText}
+            {action.modal.docsLink && (
+              <styled.Link
+                href={action.modal.docsLink.href}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {action.modal.docsLink.text}
+              </styled.Link>
+            )}
+            {action.modal.withForm && Form && (
+              <Form
+                formData={watch()}
+                fieldErrors={validationErrors}
+                clearErrors={clearErrors}
+                control={control}
+                trigger={trigger}
+                cluster={params.cluster}
+                domain={params.domain}
+                scheduleId={params.scheduleId}
+              />
+            )}
+            {error && (
+              <Banner
+                hierarchy={HIERARCHY.low}
+                kind={BANNER_KIND.negative}
+                overrides={overrides.banner}
+                artwork={{
+                  icon: MdErrorOutline,
+                }}
+              >
+                {error.message}
+              </Banner>
+            )}
+          </styled.ModalBodyContent>
         </styled.ModalBody>
         <styled.ModalFooter>
           <ModalButton

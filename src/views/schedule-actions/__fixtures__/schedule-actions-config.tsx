@@ -1,4 +1,9 @@
-import { MdPauseCircleOutline, MdPlayCircleOutline } from 'react-icons/md';
+import {
+  MdOutlineWarningAmber,
+  MdPauseCircleOutline,
+  MdPlayCircleOutline,
+} from 'react-icons/md';
+import { z } from 'zod';
 
 import { type PauseScheduleResponse } from '@/route-handlers/pause-schedule/pause-schedule.types';
 import { type UnpauseScheduleResponse } from '@/route-handlers/unpause-schedule/unpause-schedule.types';
@@ -14,19 +19,34 @@ const mockActionApiRoute =
 
 export const mockPauseActionConfig: ScheduleAction<
   PauseScheduleResponse,
-  undefined,
+  { reason: string },
   { reason: string }
 > = {
   id: 'pause',
   label: 'Mock pause',
   subtitle: 'Mock pause a schedule',
   modal: {
-    text: 'Mock modal text to pause a schedule',
-    docsLink: {
-      text: 'Mock docs link',
-      href: 'https://mock.docs.link',
+    banner: {
+      kind: 'warning',
+      icon: ({ size }) => <MdOutlineWarningAmber size={size} />,
+      render: () => 'Mock pause banner message',
     },
-    withForm: false,
+    withForm: true,
+    form: ({ control, fieldErrors }) => (
+      <div data-testid="mock-pause-form">
+        <input
+          data-testid="mock-pause-reason"
+          aria-label="Reason"
+          aria-invalid={!!fieldErrors.reason}
+          {...control.register('reason')}
+        />
+      </div>
+    ),
+    formSchema: z.object({
+      reason: z.string().trim().min(1, 'Reason for pausing is required'),
+    }),
+    transformFormDataToSubmission: (formData) => formData,
+    initialFormValues: { reason: '' },
   },
   icon: MdPauseCircleOutline,
   getRunnableStatus: (schedule) =>
@@ -34,7 +54,6 @@ export const mockPauseActionConfig: ScheduleAction<
       ? 'NOT_RUNNABLE_SCHEDULE_ALREADY_PAUSED'
       : 'RUNNABLE',
   apiRoute: mockActionApiRoute('pause'),
-  getConfirmSubmissionData: () => ({ reason: 'Mock pause reason' }),
   renderSuccessMessage: () => 'Mock pause notification',
 };
 

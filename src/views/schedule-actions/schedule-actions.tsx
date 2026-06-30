@@ -25,12 +25,7 @@ type SchedulePageParams = {
 
 export default function ScheduleActions() {
   const params = useParams<SchedulePageParams>();
-  const scheduleDetailsParams = pick(
-    params,
-    'cluster',
-    'scheduleId',
-    'domain'
-  );
+  const scheduleDetailsParams = pick(params, 'cluster', 'scheduleId', 'domain');
 
   const {
     data: schedule,
@@ -77,6 +72,7 @@ export default function ScheduleActions() {
       </StatefulPopover>
       <ScheduleActionsModal
         {...scheduleDetailsParams}
+        schedule={schedule}
         action={selectedAction}
         onClose={() => setSelectedAction(undefined)}
       />

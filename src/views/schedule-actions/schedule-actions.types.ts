@@ -1,9 +1,11 @@
 import { type ReactNode } from 'react';
 
 import { type QueryClient } from '@tanstack/react-query';
+import { type KIND as BANNER_KIND } from 'baseui/banner';
 import { type IconProps } from 'baseui/icon';
 import { type AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
 import {
+  type DefaultValues,
   type UseFormClearErrors,
   type Control,
   type FieldErrors,
@@ -52,6 +54,18 @@ export type ScheduleActionRunnableStatus =
   | 'RUNNABLE'
   | ScheduleActionNonRunnableStatus;
 
+export type ScheduleActionBannerKind = keyof typeof BANNER_KIND;
+
+export type ScheduleActionBannerIcon = (props: {
+  size: IconProps['size'];
+}) => ReactNode;
+
+export type ScheduleActionModalBanner = {
+  kind: ScheduleActionBannerKind;
+  icon: ScheduleActionBannerIcon;
+  render: (schedule?: DescribeScheduleResponse) => ReactNode;
+};
+
 export type ScheduleActionModalForm<FormData, SubmissionData> =
   | {
       withForm: true;
@@ -62,6 +76,9 @@ export type ScheduleActionModalForm<FormData, SubmissionData> =
       ) => ReactNode;
       formSchema: z.ZodSchema<FormData>;
       transformFormDataToSubmission: (formData: FormData) => SubmissionData;
+      initialFormValues?: DefaultValues<
+        FormData extends FieldValues ? FormData : FieldValues
+      >;
     }
   | {
       withForm: false;
@@ -79,11 +96,12 @@ export type ScheduleAction<
   label: string;
   subtitle: string;
   modal: {
-    text: string | string[];
+    text?: string | string[];
     docsLink?: {
       text: string;
       href: string;
     };
+    banner?: ScheduleActionModalBanner;
   } & ScheduleActionModalForm<FormData, SubmissionData>;
   icon: React.ComponentType<{
     size?: IconProps['size'];

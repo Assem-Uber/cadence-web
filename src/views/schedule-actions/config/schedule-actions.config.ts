@@ -3,27 +3,35 @@ import { MdPauseCircleOutline, MdPlayCircleOutline } from 'react-icons/md';
 import { type PauseScheduleResponse } from '@/route-handlers/pause-schedule/pause-schedule.types';
 import { type UnpauseScheduleResponse } from '@/route-handlers/unpause-schedule/unpause-schedule.types';
 
+import ScheduleActionPauseForm from '../schedule-action-pause-form/schedule-action-pause-form';
+import { type PauseScheduleFormData } from '../schedule-action-pause-form/schedule-action-pause-form.types';
+import { pauseScheduleFormSchema } from '../schedule-action-pause-form/schemas/pause-schedule-form-schema';
 import { type ScheduleAction } from '../schedule-actions.types';
 
-export type PauseScheduleSubmissionData = {
-  reason: string;
-};
+import { pauseScheduleBannerIcon } from './schedule-actions-banner-icons';
+import { PAUSE_SCHEDULE_MODAL_BANNER_MESSAGE } from './schedule-actions.constants';
+
+export type PauseScheduleSubmissionData = PauseScheduleFormData;
 
 const pauseScheduleActionConfig: ScheduleAction<
   PauseScheduleResponse,
-  undefined,
+  PauseScheduleFormData,
   PauseScheduleSubmissionData
 > = {
   id: 'pause',
   label: 'Pause',
   subtitle: 'Pause a schedule',
   modal: {
-    text: 'Pauses the schedule so no new workflow runs are triggered until it is resumed.',
-    docsLink: {
-      text: 'Read more about pausing schedules',
-      href: 'https://cadenceworkflow.io/docs/concepts/schedules',
+    banner: {
+      kind: 'warning',
+      icon: pauseScheduleBannerIcon,
+      render: () => PAUSE_SCHEDULE_MODAL_BANNER_MESSAGE,
     },
-    withForm: false,
+    withForm: true,
+    form: ScheduleActionPauseForm,
+    formSchema: pauseScheduleFormSchema,
+    transformFormDataToSubmission: (formData) => formData,
+    initialFormValues: { reason: '' },
   },
   icon: MdPauseCircleOutline,
   getRunnableStatus: (schedule) =>
@@ -32,15 +40,10 @@ const pauseScheduleActionConfig: ScheduleAction<
       : 'RUNNABLE',
   apiRoute: (params) =>
     `/api/domains/${encodeURIComponent(params.domain)}/${encodeURIComponent(params.cluster)}/schedules/${encodeURIComponent(params.scheduleId)}/pause`,
-  getConfirmSubmissionData: () => ({
-    reason: 'Paused from Cadence Web UI',
-  }),
   renderSuccessMessage: () => 'Schedule has been paused.',
 };
 
-const resumeScheduleActionConfig: ScheduleAction<
-  UnpauseScheduleResponse
-> = {
+const resumeScheduleActionConfig: ScheduleAction<UnpauseScheduleResponse> = {
   id: 'resume',
   label: 'Resume',
   subtitle: 'Resume a paused schedule',
