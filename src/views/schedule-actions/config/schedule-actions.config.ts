@@ -6,6 +6,14 @@ import { type UnpauseScheduleResponse } from '@/route-handlers/unpause-schedule/
 import ScheduleActionPauseForm from '../schedule-action-pause-form/schedule-action-pause-form';
 import { type PauseScheduleFormData } from '../schedule-action-pause-form/schedule-action-pause-form.types';
 import { pauseScheduleFormSchema } from '../schedule-action-pause-form/schemas/pause-schedule-form-schema';
+import transformResumeScheduleFormToSubmission from '../schedule-action-resume-form/helpers/transform-resume-schedule-form-to-submission';
+import ScheduleActionResumeForm from '../schedule-action-resume-form/schedule-action-resume-form';
+import { USE_SCHEDULE_CATCH_UP_POLICY } from '../schedule-action-resume-form/schedule-action-resume-form.constants';
+import {
+  type ResumeScheduleFormData,
+  type ResumeScheduleSubmissionData,
+} from '../schedule-action-resume-form/schedule-action-resume-form.types';
+import { resumeScheduleFormSchema } from '../schedule-action-resume-form/schemas/resume-schedule-form-schema';
 import { type ScheduleAction } from '../schedule-actions.types';
 
 import { pauseScheduleBannerIcon } from './schedule-actions-banner-icons';
@@ -43,17 +51,23 @@ const pauseScheduleActionConfig: ScheduleAction<
   renderSuccessMessage: () => 'Schedule has been paused.',
 };
 
-const resumeScheduleActionConfig: ScheduleAction<UnpauseScheduleResponse> = {
+const resumeScheduleActionConfig: ScheduleAction<
+  UnpauseScheduleResponse,
+  ResumeScheduleFormData,
+  ResumeScheduleSubmissionData
+> = {
   id: 'resume',
   label: 'Resume',
   subtitle: 'Resume a paused schedule',
   modal: {
-    text: 'Resumes the schedule so new workflow runs can be triggered again.',
-    docsLink: {
-      text: 'Read more about schedules',
-      href: 'https://cadenceworkflow.io/docs/concepts/schedules',
+    withForm: true,
+    form: ScheduleActionResumeForm,
+    formSchema: resumeScheduleFormSchema,
+    transformFormDataToSubmission: transformResumeScheduleFormToSubmission,
+    initialFormValues: {
+      catchUpPolicy: USE_SCHEDULE_CATCH_UP_POLICY,
+      reason: '',
     },
-    withForm: false,
   },
   icon: MdPlayCircleOutline,
   getRunnableStatus: (schedule) =>
