@@ -2,10 +2,7 @@ import { HttpResponse } from 'msw';
 
 import { renderHook, waitFor } from '@/test-utils/rtl';
 
-import {
-  getMockPausedDescribeScheduleResponse,
-  getMockRunningDescribeScheduleResponse,
-} from '@/route-handlers/describe-schedule/__fixtures__/mock-describe-schedule-response';
+import { getMockRunningDescribeScheduleResponse } from '@/route-handlers/describe-schedule/__fixtures__/mock-describe-schedule-response';
 import { getMockWorkflowListItem } from '@/route-handlers/list-workflows/__fixtures__/mock-workflow-list-items';
 
 import useScheduleRunsChartData from '../use-schedule-runs-chart-data';
@@ -17,14 +14,33 @@ const nowMs = Date.UTC(2024, 0, 1, 12, 0);
 const hourMs = 60 * 60_000;
 
 describe(useScheduleRunsChartData.name, () => {
-  it('maps live workflow runs and the next execution once loaded', async () => {
+  it('starts loading before any response has resolved', () => {
+    const { result } = setup({
+      describeScheduleResponse: getMockRunningDescribeScheduleResponse(),
+      workflowsResponse: { workflows: [], nextPage: '' },
+      domainResponse: getMockDomainResponse(),
+    });
+
+    expect(result.current.isLoading).toBe(true);
+  });
+
+  it('maps live workflow runs, skipped occurrences, and the next execution once loaded', async () => {
     const { result } = setup({
       describeScheduleResponse: getMockRunningDescribeScheduleResponse({
+        spec: {
+          cronExpression: '0 * * * *',
+          startTime: null,
+          endTime: null,
+          jitter: null,
+        },
         info: {
           lastRunTime: null,
           nextRunTime: { seconds: String((nowMs + hourMs) / 1000), nanos: 0 },
-          totalRuns: '1',
-          createTime: null,
+          totalRuns: '2',
+          createTime: {
+            seconds: String((nowMs - 3 * hourMs) / 1000),
+            nanos: 0,
+          },
           lastUpdateTime: null,
           missedRuns: '0',
           skippedRuns: '0',
@@ -54,44 +70,25 @@ describe(useScheduleRunsChartData.name, () => {
         ],
         nextPage: '',
       },
+      domainResponse: getMockDomainResponse(),
     });
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-    expect(result.current.data).toEqual({
-      runs: [
-        {
-          runId: 'run-1',
-          status: 'WORKFLOW_EXECUTION_CLOSE_STATUS_COMPLETED',
-          scheduledTimeMs: nowMs - hourMs,
-          isBackfill: false,
-        },
-      ],
-      skippedExecutions: [],
-      nextExecutionTimeMs: nowMs + hourMs,
-    });
-  });
-
-  it('returns null next execution for a paused schedule', async () => {
-    const { result } = setup({
-      describeScheduleResponse: getMockPausedDescribeScheduleResponse({
-        info: {
-          lastRunTime: null,
-          nextRunTime: { seconds: String((nowMs + hourMs) / 1000), nanos: 0 },
-          totalRuns: '1',
-          createTime: null,
-          lastUpdateTime: null,
-          missedRuns: '0',
-          skippedRuns: '0',
-          ongoingBackfills: [],
-        },
+    expect(result.current.data.runs).toEqual([
+      expect.objectContaining({
+        runId: 'run-1',
+        scheduledTimeMs: nowMs - hourMs,
       }),
-      workflowsResponse: { workflows: [], nextPage: '' },
-    });
-
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
-
-    expect(result.current.data.nextExecutionTimeMs).toBeNull();
+    ]);
+    expect(result.current.data.nextExecutionTimeMs).toBe(nowMs + hourMs);
+    // Every hourly slot from the schedule's create time through now has no
+    // matching run except the one hour ago, so those are inferred as skipped.
+    expect(result.current.data.skippedExecutions).toEqual([
+      { scheduledTimeMs: nowMs - 3 * hourMs },
+      { scheduledTimeMs: nowMs - 2 * hourMs },
+      { scheduledTimeMs: nowMs },
+    ]);
   });
 
   it('keeps all runs when nextRunTime is invalid', async () => {
@@ -125,6 +122,7 @@ describe(useScheduleRunsChartData.name, () => {
         ],
         nextPage: '',
       },
+      domainResponse: getMockDomainResponse(),
     });
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
@@ -143,6 +141,12 @@ describe(useScheduleRunsChartData.name, () => {
 
     const { result } = setup({
       describeScheduleResponse: getMockRunningDescribeScheduleResponse({
+        spec: {
+          cronExpression: '0 * * * *',
+          startTime: null,
+          endTime: null,
+          jitter: null,
+        },
         info: {
           lastRunTime: null,
           nextRunTime: {
@@ -150,7 +154,10 @@ describe(useScheduleRunsChartData.name, () => {
             nanos: 0,
           },
           totalRuns: '2',
-          createTime: null,
+          createTime: {
+            seconds: String((nowMs - 3 * hourMs) / 1000),
+            nanos: 0,
+          },
           lastUpdateTime: null,
           missedRuns: '0',
           skippedRuns: '0',
@@ -186,6 +193,7 @@ describe(useScheduleRunsChartData.name, () => {
         ],
         nextPage: '',
       },
+      domainResponse: getMockDomainResponse(),
     });
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
@@ -193,17 +201,27 @@ describe(useScheduleRunsChartData.name, () => {
     expect(result.current.data.runs).toEqual([
       expect.objectContaining({ runId: 'run-before' }),
     ]);
+    expect(result.current.data.nextExecutionTimeMs).toBe(nowMs + hourMs);
+    // Every hourly slot from the schedule's create time through now has no
+    // matching run except the one hour ago, so those are inferred as skipped.
+    expect(result.current.data.skippedExecutions).toEqual([
+      { scheduledTimeMs: nowMs - 3 * hourMs },
+      { scheduledTimeMs: nowMs - 2 * hourMs },
+      { scheduledTimeMs: nowMs },
+    ]);
   });
 });
 
 function setup({
   describeScheduleResponse,
   workflowsResponse,
+  domainResponse,
 }: {
   describeScheduleResponse: ReturnType<
     typeof getMockRunningDescribeScheduleResponse
   >;
   workflowsResponse: { workflows: unknown[]; nextPage: string };
+  domainResponse: ReturnType<typeof getMockDomainResponse>;
 }) {
   return renderHook(
     () =>
@@ -211,6 +229,7 @@ function setup({
         domain: mockDomain,
         cluster: mockCluster,
         scheduleId: mockScheduleId,
+        nowMs,
       }),
     {
       endpointsMocks: [
@@ -226,7 +245,20 @@ function setup({
           mockOnce: false,
           httpResolver: () => HttpResponse.json(workflowsResponse),
         },
+        {
+          path: `/api/domains/${mockDomain}/${mockCluster}`,
+          httpMethod: 'GET',
+          mockOnce: false,
+          httpResolver: () => HttpResponse.json(domainResponse),
+        },
       ],
     }
   );
+}
+
+function getMockDomainResponse(overrides: Record<string, unknown> = {}) {
+  return {
+    workflowExecutionRetentionPeriod: { seconds: '604800', nanos: 0 },
+    ...overrides,
+  };
 }

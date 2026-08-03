@@ -1,10 +1,14 @@
 'use client';
 import { useMemo } from 'react';
 
-import formatTimestampToDatetime from '@/utils/data-formatters/format-timestamp-to-datetime';
+import formatDurationToSeconds from '@/utils/data-formatters/format-duration-to-seconds';
+import formatTimestampToMs from '@/utils/data-formatters/format-timestamp-to-ms';
 import useListWorkflowsForSchedule from '@/views/schedule-details/hooks/use-list-workflows-for-schedule/use-list-workflows-for-schedule';
 import useDescribeSchedule from '@/views/shared/hooks/use-describe-schedule/use-describe-schedule';
+import useDomainDescription from '@/views/shared/hooks/use-domain-description/use-domain-description';
 
+import getScheduleExecutionGaps from './helpers/get-schedule-execution-gaps';
+import getScheduleTimelineBounds from './helpers/get-schedule-timeline-bounds';
 import workflowsForScheduleToChartSeriesRuns from './helpers/workflows-for-schedule-to-chart-series-runs';
 import {
   CHART_DESCRIBE_REFRESH_INTERVAL_MS,
@@ -20,6 +24,7 @@ export default function useScheduleRunsChartData({
   domain,
   cluster,
   scheduleId,
+  nowMs,
 }: UseScheduleRunsChartDataParams): UseScheduleRunsChartDataResult {
   const describeQuery = useDescribeSchedule({
     domain,
@@ -35,41 +40,92 @@ export default function useScheduleRunsChartData({
     refetchIntervalMs: CHART_WORKFLOWS_REFRESH_INTERVAL_MS,
     runsRevision: describeQuery.data?.info?.totalRuns,
   });
+  const domainQuery = useDomainDescription({ domain, cluster });
+  // Rounded to the minute so a per-second `nowMs` tick does not re-walk the
+  // cron timeline on every render.
+  const cronEvaluationTimeMs = Math.floor(nowMs / 60_000) * 60_000;
 
-  const data = useMemo(() => {
-    const runs = workflowsForScheduleToChartSeriesRuns(workflowsQuery.data);
-
-    const describe = describeQuery.data;
-    let nextExecutionTimeMs: number | null = null;
-    if (!describe?.state?.paused) {
-      const ms = formatTimestampToDatetime(
-        describe?.info?.nextRunTime
-      )?.valueOf();
-      if (typeof ms === 'number' && Number.isFinite(ms))
-        nextExecutionTimeMs = ms;
+  const runs = useMemo(
+    () => workflowsForScheduleToChartSeriesRuns(workflowsQuery.data),
+    [workflowsQuery.data]
+  );
+  const nextExecutionTimeMs = useMemo(() => {
+    if (describeQuery.data?.state?.paused) {
+      return null;
     }
 
-    // Next run and the run list come from two independently polled APIs, so
-    // drop points at or after the next run until describe catches up.
-    const filteredRuns =
-      nextExecutionTimeMs == null
-        ? runs
-        : runs.filter(
-            ({ scheduledTimeMs }) => scheduledTimeMs < nextExecutionTimeMs
-          );
+    return formatTimestampToMs(describeQuery.data?.info?.nextRunTime);
+  }, [describeQuery.data]);
+  // Runs are already filtered to those with a parsable scheduled time, so the
+  // oldest loaded slot is just the minimum of what's already been mapped.
+  const oldestLoadedScheduleTimeMs = useMemo(
+    () =>
+      runs.length > 0
+        ? Math.min(...runs.map(({ scheduledTimeMs }) => scheduledTimeMs))
+        : null,
+    [runs]
+  );
+  const retentionSeconds = formatDurationToSeconds(
+    domainQuery.data?.workflowExecutionRetentionPeriod
+  );
+  const timelineBounds = useMemo(
+    () =>
+      getScheduleTimelineBounds({
+        describeSchedule: describeQuery.data,
+        retentionSeconds,
+        nowMs: cronEvaluationTimeMs,
+      }),
+    [cronEvaluationTimeMs, describeQuery.data, retentionSeconds]
+  );
+  const cronExpression = describeQuery.data?.spec?.cronExpression ?? '';
+  const { skippedExecutions, unconfirmedExecutions } = useMemo(
+    () =>
+      getScheduleExecutionGaps({
+        cronExpression,
+        timelineStartMs: timelineBounds.timelineStartMs,
+        scheduleEndMs: timelineBounds.scheduleEndMs,
+        oldestLoadedScheduleTimeMs,
+        hasNextPage: workflowsQuery.hasNextPage ?? false,
+        lastFetchedAtMs: workflowsQuery.dataUpdatedAt || null,
+        nowMs: cronEvaluationTimeMs,
+        nextExecutionTimeMs,
+        actualTimesMs: runs.map(({ scheduledTimeMs }) => scheduledTimeMs),
+      }),
+    [
+      cronEvaluationTimeMs,
+      cronExpression,
+      nextExecutionTimeMs,
+      oldestLoadedScheduleTimeMs,
+      runs,
+      timelineBounds.timelineStartMs,
+      timelineBounds.scheduleEndMs,
+      workflowsQuery.dataUpdatedAt,
+      workflowsQuery.hasNextPage,
+    ]
+  );
+
+  const data = useMemo(() => {
+    const isBeforeNextExecution = ({
+      scheduledTimeMs,
+    }: {
+      scheduledTimeMs: number;
+    }) => nextExecutionTimeMs == null || scheduledTimeMs < nextExecutionTimeMs;
 
     return {
-      runs: filteredRuns,
-      // skipped/missed executions are inferred from the cron
-      // schedule in a follow-up slice; until then the chart simply shows no
-      // skipped markers.
-      skippedExecutions: [],
+      runs: runs.filter(isBeforeNextExecution),
+      skippedExecutions: skippedExecutions.filter(isBeforeNextExecution),
+      unconfirmedExecutions: unconfirmedExecutions.filter(
+        isBeforeNextExecution
+      ),
       nextExecutionTimeMs,
     };
-  }, [describeQuery.data, workflowsQuery.data]);
+  }, [nextExecutionTimeMs, unconfirmedExecutions, runs, skippedExecutions]);
 
   return {
     data,
-    isLoading: describeQuery.isLoading || workflowsQuery.isLoading,
+    isLoading:
+      describeQuery.isLoading ||
+      domainQuery.isLoading ||
+      workflowsQuery.isLoading,
   };
 }
