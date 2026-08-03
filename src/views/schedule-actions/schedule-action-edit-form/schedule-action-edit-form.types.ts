@@ -1,5 +1,7 @@
 import { type z } from 'zod';
 
+import { type ScheduleActionFormProps } from '../schedule-actions.types';
+
 import { type editScheduleFormSchema } from './schemas/edit-schedule-form-schema';
 
 export type EditScheduleFormData = z.infer<typeof editScheduleFormSchema>;
@@ -15,3 +17,8 @@ export type EditScheduleFormData = z.infer<typeof editScheduleFormSchema>;
  * would make genuinely optional fields impossible to leave unset.
  */
 export type ExhaustiveDefaults<T> = { [K in keyof Required<T>]: T[K] };
+
+export type Props = Pick<
+  ScheduleActionFormProps<EditScheduleFormData>,
+  'control' | 'trigger' | 'clearErrors' | 'domain' | 'cluster'
+>;
