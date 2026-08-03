@@ -2,6 +2,8 @@ import { type z } from 'zod';
 
 import { type CreateScheduleRequestBody } from '@/route-handlers/create-schedule/create-schedule.types';
 
+import { type ScheduleActionFormProps } from '../schedule-actions.types';
+
 import { type editScheduleFormSchema } from './schemas/edit-schedule-form-schema';
 
 export type EditScheduleFormData = z.infer<typeof editScheduleFormSchema>;
@@ -34,3 +36,8 @@ export type EditScheduleFormPrefillValues = Omit<
  * stops a newly-added form field from silently prefilling as blank.
  */
 export type ExhaustiveDefaults<T> = { [K in keyof Required<T>]: T[K] };
+
+export type Props = Pick<
+  ScheduleActionFormProps<EditScheduleFormData>,
+  'control' | 'trigger' | 'clearErrors' | 'domain' | 'cluster'
+>;
