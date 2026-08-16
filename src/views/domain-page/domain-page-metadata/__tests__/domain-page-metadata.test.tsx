@@ -24,6 +24,10 @@ jest.mock('../../domain-page-metadata-table/domain-page-metadata-table', () =>
   )
 );
 
+jest.mock('../../domain-page-metadata-auth/domain-page-metadata-auth', () =>
+  jest.fn(() => <div>Mock metadata auth</div>)
+);
+
 describe(DomainPageMetadata.name, () => {
   it('renders metadata without error', async () => {
     await setup({});

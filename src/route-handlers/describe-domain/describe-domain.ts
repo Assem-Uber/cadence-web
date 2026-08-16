@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server';
 
+import { getDomainReadAccessDeniedResponse } from '@/utils/auth/authorization/domain-access-http';
 import { getHTTPStatusCode, GRPCError } from '@/utils/grpc/grpc-error';
 import logger, { type RouteHandlerErrorPayload } from '@/utils/logger';
 
@@ -20,6 +21,21 @@ export async function describeDomain(
     const res = await ctx.grpcClusterMethods.describeDomain({
       name: params.domain,
     });
+
+    if (!res.domain) {
+      return NextResponse.json(
+        { message: 'Domain not found' },
+        { status: 404 }
+      );
+    }
+
+    const accessDeniedResponse = getDomainReadAccessDeniedResponse(
+      res.domain,
+      ctx.authInfo
+    );
+    if (accessDeniedResponse) {
+      return accessDeniedResponse;
+    }
 
     return NextResponse.json(res.domain);
   } catch (e) {

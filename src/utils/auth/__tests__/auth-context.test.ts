@@ -6,7 +6,7 @@ import {
   getGrpcMetadataFromAuth,
   resolveAuthContext,
 } from '@/utils/auth/auth-context';
-import { getDomainAccessForUser } from '@/utils/auth/auth-shared';
+import { getDomainAccessForUser } from '@/utils/auth/authorization/domain-access';
 import getConfigValue from '@/utils/config/get-config-value';
 
 jest.mock('@/utils/config/get-config-value');
@@ -444,12 +444,13 @@ describe('auth-context utilities', () => {
   });
 
   describe(getPublicAuthContext.name, () => {
-    it('omits private fields but preserves flags', () => {
+    it('returns session state only, omitting token, identity and permissions', () => {
       const authContext = {
         authEnabled: true,
         auth: {
           isValidToken: true,
           token: 'secret',
+          canRefresh: true,
         },
         groups: ['worker'],
         isAdmin: true,
@@ -462,12 +463,12 @@ describe('auth-context utilities', () => {
         auth: {
           isValidToken: true,
           expiresAtMs: undefined,
+          canRefresh: true,
         },
-        groups: ['worker'],
-        isAdmin: true,
-        userName: 'worker',
-        id: 'worker',
       });
+      expect(getPublicAuthContext(authContext)).not.toHaveProperty('groups');
+      expect(getPublicAuthContext(authContext)).not.toHaveProperty('isAdmin');
+      expect(getPublicAuthContext(authContext)).not.toHaveProperty('userName');
     });
   });
 

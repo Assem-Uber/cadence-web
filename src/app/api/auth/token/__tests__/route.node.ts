@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 
-import { CADENCE_AUTH_COOKIE_NAME } from '@/utils/auth/auth-context';
+import { CADENCE_AUTH_COOKIE_NAME } from '@/utils/auth/auth.constants';
 
 import { DELETE, POST } from '../route';
 

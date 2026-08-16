@@ -7,8 +7,10 @@ import getConfigValueQueryOptions from '@/hooks/use-config-value/get-config-valu
 import getDomainDescriptionQueryOptions from '@/views/shared/hooks/use-domain-description/get-domain-description-query-options';
 
 import { type DomainPageTabContentProps } from '../domain-page-content/domain-page-content.types';
+import DomainPageMetadataAuth from '../domain-page-metadata-auth/domain-page-metadata-auth';
 import DomainPageMetadataTable from '../domain-page-metadata-table/domain-page-metadata-table';
 
+import { styled } from './domain-page-metadata.styles';
 import { type DomainMetadata } from './domain-page-metadata.types';
 
 export default function DomainPageMetadata(props: DomainPageTabContentProps) {
@@ -35,5 +37,10 @@ export default function DomainPageMetadata(props: DomainPageTabContentProps) {
     isExtendedMetadataEnabled,
   };
 
-  return <DomainPageMetadataTable {...domainMetadata} />;
+  return (
+    <styled.MetadataPageContainer>
+      <DomainPageMetadataAuth domain={props.domain} cluster={props.cluster} />
+      <DomainPageMetadataTable {...domainMetadata} />
+    </styled.MetadataPageContainer>
+  );
 }

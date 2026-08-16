@@ -1,16 +1,25 @@
+import { type DomainAccessResponse } from '@/route-handlers/domain-access/domain-access.types';
 import { resolveAuthContext } from '@/utils/auth/auth-context';
-import { FULL_ACCESS, NO_ACCESS } from '@/utils/auth/auth-shared.constants';
-import { type PrivateAuthContext } from '@/utils/auth/auth-shared.types';
+import { FULL_ACCESS, NO_ACCESS } from '@/utils/auth/auth.constants';
+import { type PrivateAuthContext } from '@/utils/auth/auth.types';
+import request from '@/utils/request';
 
 import batchActionsUiEnabled from '../batch-actions-ui-enabled';
-import domainAccess from '../domain-access';
 
-jest.mock('../domain-access', () => jest.fn());
+jest.mock('@/utils/request', () => jest.fn());
 jest.mock('@/utils/auth/auth-context', () => ({
   resolveAuthContext: jest.fn(),
 }));
 
-const mockDomainAccess = jest.mocked(domainAccess);
+const mockRequest = jest.mocked(request);
+
+const mockDomainAccess = {
+  mockResolvedValue: (access: DomainAccessResponse) =>
+    mockRequest.mockResolvedValue({
+      json: async () => access,
+    } as Response),
+  mockRejectedValue: (error: Error) => mockRequest.mockRejectedValue(error),
+};
 const mockResolveAuthContext = jest.mocked(resolveAuthContext);
 
 const PARAMS = { cluster: 'test-cluster', domain: 'test-domain' };
@@ -42,7 +51,7 @@ describe(batchActionsUiEnabled.name, () => {
     process.env.CADENCE_BATCH_ACTIONS_UI_ENABLED = 'ENABLED';
 
     expect(await batchActionsUiEnabled(PARAMS)).toBe(true);
-    expect(mockDomainAccess).not.toHaveBeenCalled();
+    expect(mockRequest).not.toHaveBeenCalled();
     expect(mockResolveAuthContext).not.toHaveBeenCalled();
   });
 
@@ -60,15 +69,17 @@ describe(batchActionsUiEnabled.name, () => {
 
   it('returns canWrite from domain access in "WRITE" mode', async () => {
     process.env.CADENCE_BATCH_ACTIONS_UI_ENABLED = 'WRITE';
-    mockDomainAccess.mockResolvedValue(FULL_ACCESS);
+    mockDomainAccess.mockResolvedValue({ ...FULL_ACCESS, isAdmin: false });
 
     expect(await batchActionsUiEnabled(PARAMS)).toBe(true);
-    expect(mockDomainAccess).toHaveBeenCalledWith(PARAMS);
+    expect(mockRequest).toHaveBeenCalledWith(
+      '/api/domains/test-domain/test-cluster/access'
+    );
   });
 
   it('returns false in "WRITE" mode when write access is denied', async () => {
     process.env.CADENCE_BATCH_ACTIONS_UI_ENABLED = 'WRITE';
-    mockDomainAccess.mockResolvedValue(NO_ACCESS);
+    mockDomainAccess.mockResolvedValue({ ...NO_ACCESS, isAdmin: false });
 
     expect(await batchActionsUiEnabled(PARAMS)).toBe(false);
   });

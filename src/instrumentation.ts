@@ -1,8 +1,5 @@
 import { type Instrumentation } from '@opentelemetry/instrumentation';
 
-import getTransformedConfigs from './utils/config/get-transformed-configs';
-import { setLoadedGlobalConfigs } from './utils/config/global-configs-ref';
-
 export async function register() {
   let instrumentations: (Instrumentation | Instrumentation[])[] = [];
   // register instrumentations before any other code is executed
@@ -27,6 +24,14 @@ export async function register() {
         instrumentations,
       });
     }
+    // Imported dynamically so the config graph (which reaches node-only
+    // modules like node:crypto) is never bundled into the edge runtime.
+    const { default: getTransformedConfigs } = await import(
+      './utils/config/get-transformed-configs'
+    );
+    const { setLoadedGlobalConfigs } = await import(
+      './utils/config/global-configs-ref'
+    );
     try {
       const configs = await getTransformedConfigs();
       setLoadedGlobalConfigs(configs);

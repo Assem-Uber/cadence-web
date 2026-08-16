@@ -23,9 +23,11 @@ export default function DomainPageContent(props: Props) {
     return notFound();
   }
 
+  const TabContent = tabConfig.content;
+
   return (
     <styled.PageSection>
-      <tabConfig.content
+      <TabContent
         domain={decodedParams.domain}
         cluster={decodedParams.cluster}
       />

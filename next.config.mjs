@@ -18,7 +18,9 @@ const nextConfig = {
       ...config.resolve.alias,
       '@': path.resolve(__dirname, './src'),
     };
-    if (options.isServer) {
+    // Externals only apply to the Node.js server build; the edge (middleware)
+    // build cannot require() modules, so externals there emit invalid JS.
+    if (options.isServer && options.nextRuntime === 'nodejs') {
       config.externals.push(
         '@grpc/grpc-js',
         'require-in-the-middle',

@@ -6,43 +6,29 @@ import useAuthLifecycle from '../use-auth-lifecycle';
 
 type AuthResponse = {
   authEnabled: boolean;
+  authStrategy: 'disabled' | 'jwt' | 'oidc';
   auth: {
     isValidToken: boolean;
     expiresAtMs?: number;
   };
-  isAdmin: boolean;
-  groups: string[];
-  userName?: string;
 };
 
 const AUTH_ENABLED: AuthResponse = {
   authEnabled: true,
+  authStrategy: 'jwt',
   auth: { isValidToken: true },
-  isAdmin: false,
-  groups: ['reader'],
-  userName: 'alice',
 };
 
 const AUTH_DISABLED: AuthResponse = {
   authEnabled: false,
+  authStrategy: 'disabled',
   auth: { isValidToken: false },
-  isAdmin: false,
-  groups: [],
 };
 
 const AUTH_UNAUTHENTICATED: AuthResponse = {
   authEnabled: true,
+  authStrategy: 'jwt',
   auth: { isValidToken: false },
-  isAdmin: false,
-  groups: [],
-};
-
-const AUTH_ADMIN: AuthResponse = {
-  authEnabled: true,
-  auth: { isValidToken: true },
-  isAdmin: true,
-  groups: [],
-  userName: 'admin-user',
 };
 
 describe(useAuthLifecycle.name, () => {
@@ -59,7 +45,8 @@ describe(useAuthLifecycle.name, () => {
         expect(result.current.isAuthLoading).toBe(false);
       });
 
-      expect(result.current.isAdmin).toBe(false);
+      expect(result.current.isJwtAuth).toBe(false);
+      expect(result.current.isOidcAuth).toBe(false);
       expect(result.current.userName).toBeUndefined();
     });
 
@@ -70,36 +57,25 @@ describe(useAuthLifecycle.name, () => {
         expect(result.current.isAuthEnabled).toBe(true);
       });
 
+      expect(result.current.isJwtAuth).toBe(true);
+      expect(result.current.isOidcAuth).toBe(false);
       expect(result.current.isValidToken).toBe(false);
-      expect(result.current.isAdmin).toBe(false);
       expect(result.current.userName).toBeUndefined();
     });
 
-    it('returns authenticated state with user info', async () => {
+    it('returns authenticated state with user info fetched from the user endpoint', async () => {
       const { result } = setup({ authResponse: AUTH_ENABLED });
 
       await waitFor(() => {
         expect(result.current.isValidToken).toBe(true);
+        expect(result.current.userName).toBe('alice');
       });
-
-      expect(result.current.isAdmin).toBe(false);
-      expect(result.current.userName).toBe('alice');
-    });
-
-    it('returns admin state for admin users', async () => {
-      const { result } = setup({ authResponse: AUTH_ADMIN });
-
-      await waitFor(() => {
-        expect(result.current.isValidToken).toBe(true);
-      });
-
-      expect(result.current.isAdmin).toBe(true);
-      expect(result.current.userName).toBe('admin-user');
     });
 
     it('preserves missing username for consumers to handle', async () => {
       const { result } = setup({
-        authResponse: { ...AUTH_ENABLED, userName: undefined },
+        authResponse: AUTH_ENABLED,
+        userInfoResponse: {},
       });
 
       await waitFor(() => {
@@ -196,6 +172,91 @@ describe(useAuthLifecycle.name, () => {
     });
   });
 
+  describe('recoverSession', () => {
+    it('recovers the session and refetches auth state', async () => {
+      let currentAuth: AuthResponse = {
+        authEnabled: true,
+        authStrategy: 'oidc',
+        auth: { isValidToken: true, expiresAtMs: 1000 },
+      };
+      const recoverHandler = jest.fn(() =>
+        HttpResponse.json({ kind: 'recovered' })
+      );
+      const { result } = setup({
+        authResponse: currentAuth,
+        dynamicAuthResolver: () => currentAuth,
+        recoverHandler,
+      });
+
+      await waitFor(() => {
+        expect(result.current.isOidcAuth).toBe(true);
+      });
+
+      currentAuth = {
+        ...currentAuth,
+        auth: { isValidToken: true, expiresAtMs: 2000 },
+      };
+      let recovery;
+      await act(async () => {
+        recovery = await result.current.recoverSession('/domains');
+      });
+
+      expect(recoverHandler).toHaveBeenCalled();
+      expect(recovery).toEqual({ kind: 'recovered' });
+      await waitFor(() => {
+        expect(result.current.expiresAtMs).toBe(2000);
+      });
+    });
+
+    it('returns noop without calling the recover API for strategies without recovery support', async () => {
+      const recoverHandler = jest.fn(() =>
+        HttpResponse.json({ kind: 'recovered' })
+      );
+      const { result } = setup({
+        authResponse: AUTH_ENABLED,
+        recoverHandler,
+      });
+
+      await waitFor(() => {
+        expect(result.current.isJwtAuth).toBe(true);
+      });
+
+      let recovery;
+      await act(async () => {
+        recovery = await result.current.recoverSession('/domains');
+      });
+
+      expect(recovery).toEqual({ kind: 'noop' });
+      expect(recoverHandler).not.toHaveBeenCalled();
+    });
+
+    it('returns noop and keeps auth state when recovery fails', async () => {
+      const recoverHandler = jest.fn(() =>
+        HttpResponse.json({ message: 'recovery failed' }, { status: 500 })
+      );
+      const { result } = setup({
+        authResponse: {
+          authEnabled: true,
+          authStrategy: 'oidc',
+          auth: { isValidToken: true, expiresAtMs: 1000 },
+        },
+        recoverHandler,
+      });
+
+      await waitFor(() => {
+        expect(result.current.isOidcAuth).toBe(true);
+      });
+
+      let recovery;
+      await act(async () => {
+        recovery = await result.current.recoverSession('/domains');
+      });
+
+      expect(recovery).toEqual({ kind: 'noop' });
+      expect(result.current.expiresAtMs).toBe(1000);
+    });
+  });
+
   describe('logout', () => {
     it('calls DELETE /api/auth/token and refetches', async () => {
       const { result, postTokenHandler, deleteTokenHandler } = setup({
@@ -212,6 +273,29 @@ describe(useAuthLifecycle.name, () => {
 
       expect(deleteTokenHandler).toHaveBeenCalled();
       expect(postTokenHandler).not.toHaveBeenCalled();
+    });
+
+    it('is a no-op for oidc strategy', async () => {
+      const deleteOidcLogoutHandler = jest.fn(() =>
+        HttpResponse.json({ ok: true })
+      );
+      const { result } = setup({
+        authResponse: {
+          ...AUTH_ENABLED,
+          authStrategy: 'oidc',
+        },
+        deleteOidcLogoutHandler,
+      });
+
+      await waitFor(() => {
+        expect(result.current.isOidcAuth).toBe(true);
+      });
+
+      await act(async () => {
+        await result.current.logout();
+      });
+
+      expect(deleteOidcLogoutHandler).not.toHaveBeenCalled();
     });
 
     it('still refetches when DELETE fails', async () => {
@@ -247,15 +331,21 @@ describe(useAuthLifecycle.name, () => {
 function setup({
   authResponse,
   dynamicAuthResolver,
+  userInfoResponse = { userName: 'alice' },
   tokenError = false,
   postTokenHandler: customPostHandler,
   deleteTokenHandler: customDeleteHandler,
+  deleteOidcLogoutHandler: customDeleteOidcHandler,
+  recoverHandler: customRecoverHandler,
 }: {
   authResponse: AuthResponse;
   dynamicAuthResolver?: () => AuthResponse;
+  userInfoResponse?: { userName?: string; id?: string; pictureUrl?: string };
   tokenError?: boolean;
   postTokenHandler?: jest.Mock;
   deleteTokenHandler?: jest.Mock;
+  deleteOidcLogoutHandler?: jest.Mock;
+  recoverHandler?: jest.Mock;
 }) {
   const defaultHandler = () => {
     if (tokenError) {
@@ -269,6 +359,10 @@ function setup({
 
   const postTokenHandler = customPostHandler ?? jest.fn(defaultHandler);
   const deleteTokenHandler = customDeleteHandler ?? jest.fn(defaultHandler);
+  const deleteOidcLogoutHandler =
+    customDeleteOidcHandler ?? jest.fn(defaultHandler);
+  const recoverHandler =
+    customRecoverHandler ?? jest.fn(() => HttpResponse.json({ kind: 'noop' }));
 
   const { result } = renderHook(() => useAuthLifecycle(), {
     endpointsMocks: [
@@ -284,6 +378,12 @@ function setup({
         },
       },
       {
+        path: '/api/auth/user',
+        httpMethod: 'GET' as const,
+        mockOnce: false,
+        httpResolver: () => HttpResponse.json(userInfoResponse),
+      },
+      {
         path: '/api/auth/token',
         httpMethod: 'POST' as const,
         mockOnce: false,
@@ -295,8 +395,25 @@ function setup({
         mockOnce: false,
         httpResolver: deleteTokenHandler,
       },
+      {
+        path: '/api/auth/oidc/logout',
+        httpMethod: 'DELETE' as const,
+        mockOnce: false,
+        httpResolver: deleteOidcLogoutHandler,
+      },
+      {
+        path: '/api/auth/recover',
+        httpMethod: 'POST' as const,
+        mockOnce: false,
+        httpResolver: recoverHandler,
+      },
     ],
   });
 
-  return { result, postTokenHandler, deleteTokenHandler };
+  return {
+    result,
+    postTokenHandler,
+    deleteTokenHandler,
+    deleteOidcLogoutHandler,
+  };
 }

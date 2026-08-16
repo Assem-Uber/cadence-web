@@ -13,6 +13,12 @@ describe(authStrategy.name, () => {
     expect(authStrategy()).toBe('jwt');
   });
 
+  it('returns the configured oidc strategy', () => {
+    process.env.CADENCE_WEB_AUTH_STRATEGY = 'oidc';
+
+    expect(authStrategy()).toBe('oidc');
+  });
+
   it('falls back to disabled for invalid values', () => {
     process.env.CADENCE_WEB_AUTH_STRATEGY = 'JWT';
 

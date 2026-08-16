@@ -17,15 +17,12 @@ import { type PublicClustersConfigs } from './resolvers/clusters-public.types';
 import { type ClustersConfigs } from './resolvers/clusters.types';
 import cronListEnabled from './resolvers/cron-list-enabled';
 import { type CronListEnabledResolverParams } from './resolvers/cron-list-enabled.types';
-import domainAccess from './resolvers/domain-access';
-import {
-  type DomainAccessResolverParams,
-  type DomainAccessResolverValue,
-} from './resolvers/domain-access.types';
 import extendedDomainInfoEnabled from './resolvers/extended-domain-info-enabled';
 import { type ExtendedDomainInfoEnabledConfig } from './resolvers/extended-domain-info-enabled.types';
 import failoverHistoryEnabled from './resolvers/failover-history-enabled';
 import listWorkflowsPartialMatchEnabled from './resolvers/list-workflows-partial-match-enabled';
+import oidcAuthConfig from './resolvers/oidc-auth-config';
+import { type OidcAuthConfig } from './resolvers/oidc-auth-config.types';
 import scheduleActionsEnabled from './resolvers/schedule-actions-enabled';
 import {
   type ScheduleActionsEnabledResolverParams,
@@ -49,6 +46,11 @@ const dynamicConfigs: {
     AuthStrategyConfigValue,
     'serverStart'
   >;
+  OIDC_AUTH_CONFIG: ConfigSyncResolverDefinition<
+    undefined,
+    OidcAuthConfig | null,
+    'serverStart'
+  >;
   CLUSTERS: ConfigSyncResolverDefinition<
     undefined,
     ClustersConfigs,
@@ -63,12 +65,6 @@ const dynamicConfigs: {
   CRON_LIST_ENABLED: ConfigAsyncResolverDefinition<
     CronListEnabledResolverParams,
     boolean,
-    'request',
-    true
-  >;
-  DOMAIN_ACCESS: ConfigAsyncResolverDefinition<
-    DomainAccessResolverParams,
-    DomainAccessResolverValue,
     'request',
     true
   >;
@@ -146,6 +142,10 @@ const dynamicConfigs: {
     resolver: authStrategy,
     evaluateOn: 'serverStart',
   },
+  OIDC_AUTH_CONFIG: {
+    resolver: oidcAuthConfig,
+    evaluateOn: 'serverStart',
+  },
   CLUSTERS: {
     resolver: clusters,
     evaluateOn: 'serverStart',
@@ -157,11 +157,6 @@ const dynamicConfigs: {
   },
   CRON_LIST_ENABLED: {
     resolver: cronListEnabled,
-    evaluateOn: 'request',
-    isPublic: true,
-  },
-  DOMAIN_ACCESS: {
-    resolver: domainAccess,
     evaluateOn: 'request',
     isPublic: true,
   },
