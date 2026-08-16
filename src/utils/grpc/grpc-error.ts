@@ -28,6 +28,15 @@ export class GRPCError extends Error {
       GRPC_ERROR_STATUS_TO_HTTP_ERROR_CODE_MAP[this.grpcStatusCode];
     this.name = 'GRPCError';
   }
+
+  // gRPC service instances are cached on globalThis (see GlobalRef in
+  // grpc-client.ts), so a GRPCError can be constructed by one webpack
+  // compilation and instanceof-checked against another compilation's copy of
+  // this class, where the prototype-chain check fails. Match on the `name`
+  // instance property instead; it survives across copies.
+  static [Symbol.hasInstance](instance: unknown): boolean {
+    return instance instanceof Error && instance.name === 'GRPCError';
+  }
 }
 
 export type GRPCInputError = Error & {

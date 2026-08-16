@@ -10,6 +10,14 @@ const cssStylesObj = {
     display: 'flex',
     height: '1em',
   },
+  signOutLink: {
+    color: 'inherit',
+    textDecoration: 'none',
+    cursor: 'pointer',
+    ':hover': {
+      textDecoration: 'underline',
+    },
+  },
 } satisfies StyletronCSSObject;
 
 export const cssStyles: StyletronCSSObjectOf<typeof cssStylesObj> =
@@ -20,6 +28,13 @@ export const overrides = {
     Root: {
       style: {
         backgroundColor: '#c62828',
+      },
+    },
+  } satisfies SnackbarElementOverrides,
+  warningSnackbar: {
+    Root: {
+      style: {
+        backgroundColor: '#996f00',
       },
     },
   } satisfies SnackbarElementOverrides,

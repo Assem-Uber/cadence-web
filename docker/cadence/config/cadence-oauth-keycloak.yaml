@@ -1,0 +1,160 @@
+# Cadence server config for local OIDC POC (Keycloak JWKS).
+# Mounted when CADENCE_CONFIG_FILE is set in docker-compose-backend-services.yml.
+
+log:
+  stdout: true
+  level: info
+
+persistence:
+  numHistoryShards: 4
+  defaultStore: default
+  visibilityStore: visibility
+  advancedVisibilityStore: es-visibility
+  datastores:
+    default:
+      nosql:
+        pluginName: "cassandra"
+        hosts: "cassandra"
+        keyspace: "cadence"
+        user: "cassandra"
+        password: "cassandra"
+        protoVersion: 4
+    visibility:
+      nosql:
+        pluginName: "cassandra"
+        hosts: "cassandra"
+        keyspace: "cadence_visibility"
+        user: "cassandra"
+        password: "cassandra"
+        protoVersion: 4
+    es-visibility:
+      elasticsearch:
+        version: "v7"
+        url:
+          scheme: "http"
+          host: "elasticsearch:9200"
+        indices:
+          visibility: cadence-visibility-dev
+
+kafka:
+  tls:
+    enabled: false
+  clusters:
+    test:
+      brokers:
+        - kafka:9092
+  topics:
+    cadence-visibility-dev:
+      cluster: test
+    cadence-visibility-dev-dlq:
+      cluster: test
+  applications:
+    visibility:
+      topic: cadence-visibility-dev
+      dlq-topic: cadence-visibility-dev-dlq
+
+ringpop:
+  name: cadence
+  broadcastAddress: ""
+  bootstrapMode: hosts
+  bootstrapHosts:
+    - "${HOST_IP}:${FRONTEND_PORT:7933}"
+    - "${HOST_IP}:${HISTORY_PORT:7934}"
+    - "${HOST_IP}:${MATCHING_PORT:7935}"
+    - "${HOST_IP}:${WORKER_PORT:7939}"
+  maxJoinDuration: 30s
+
+services:
+  frontend:
+    rpc:
+      port: "${FRONTEND_PORT:7933}"
+      grpcPort: "${GRPC_FRONTEND_PORT:7833}"
+      bindOnIP: "${BIND_ON_IP:0.0.0.0}"
+    metrics:
+      prometheus:
+        timerType: "histogram"
+        listenAddress: "${PROMETHEUS_ENDPOINT_0:0.0.0.0:8000}"
+
+  matching:
+    rpc:
+      port: "${MATCHING_PORT:7935}"
+      grpcPort: "${GRPC_MATCHING_PORT:7835}"
+      bindOnIP: "${BIND_ON_IP:0.0.0.0}"
+    metrics:
+      prometheus:
+        timerType: "histogram"
+        listenAddress: "${PROMETHEUS_ENDPOINT_1:0.0.0.0:8001}"
+
+  history:
+    rpc:
+      port: "${HISTORY_PORT:7934}"
+      grpcPort: "${GRPC_HISTORY_PORT:7834}"
+      bindOnIP: "${BIND_ON_IP:0.0.0.0}"
+    metrics:
+      prometheus:
+        timerType: "histogram"
+        listenAddress: "${PROMETHEUS_ENDPOINT_2:0.0.0.0:8002}"
+
+  worker:
+    rpc:
+      port: "${WORKER_PORT:7939}"
+      bindOnIP: "${BIND_ON_IP:0.0.0.0}"
+    metrics:
+      prometheus:
+        timerType: "histogram"
+        listenAddress: "${PROMETHEUS_ENDPOINT_3:0.0.0.0:8003}"
+
+clusterGroupMetadata:
+  clusterRedirectionPolicy:
+    policy: "all-domain-apis-forwarding"
+  failoverVersionIncrement: 10
+  primaryClusterName: "cluster0"
+  currentClusterName: "cluster0"
+  clusterGroup:
+    cluster0:
+      enabled: true
+      initialFailoverVersion: 0
+      rpcName: "cadence-frontend"
+      rpcAddress: "cadence:7833"
+      rpcTransport: "grpc"
+      # Signs internal Cadence service → frontend RPC calls when OAuth is enabled.
+      # Uses the test key pair baked into ubercadence/server:master-auto-setup.
+      authorizationProvider:
+        enable: true
+        type: "OAuthAuthorization"
+        privateKey: "/etc/cadence/credentials/keytest"
+
+publicClient:
+  hostPort: "cadence:7833"
+
+dynamicconfig:
+  client: filebased
+  filebased:
+    filepath: "/etc/cadence/dynamicconfig/development_es.yaml"
+    pollInterval: "60s"
+
+authorization:
+  oauthAuthorizer:
+    enable: true
+    maxJwtTTL: 3600
+    provider:
+      jwksURL: "http://keycloak:8080/realms/cadence/protocol/openid-connect/certs"
+      groupsAttributePath: 'realm_access.roles | join('' '', @)'
+      adminAttributePath: 'realm_access.roles | contains(@, ''cadence-admin'')'
+
+archival:
+  history:
+    status: "disabled"
+    enableRead: false
+  visibility:
+    status: "disabled"
+    enableRead: false
+
+domainDefaults:
+  archival:
+    history:
+      status: "disabled"
+      URI: ""
+    visibility:
+      status: "disabled"
+      URI: ""

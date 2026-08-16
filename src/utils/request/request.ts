@@ -1,10 +1,27 @@
 import getConfigValue from '../config/get-config-value';
 
+import { handleApiUnauthorized } from '../auth/client-auth-actions';
+import { shouldAttemptAuthRecovery } from '../auth/helpers/should-attempt-auth-recovery';
+
 import { RequestError } from './request-error';
+import { type RequestOptions } from './request.types';
+
+async function readRequestError(response: Response, url: string) {
+  const error = await response.json();
+  return new RequestError(
+    error.message,
+    url,
+    response.status,
+    error.validationErrors,
+    {
+      cause: error.cause,
+    }
+  );
+}
 
 export default async function request(
   url: string,
-  options?: RequestInit & { omitUserHeaders?: boolean }
+  options?: RequestOptions
 ): Promise<Response> {
   let absoluteUrl = url;
   let userHeaders = {};
@@ -13,35 +30,45 @@ export default async function request(
   if (isOnServer && isRelativeUrl) {
     const port = await getConfigValue('CADENCE_WEB_PORT');
     absoluteUrl = `http://127.0.0.1:${port}${url}`;
-    // propagate user headers from browser to server API calls
     userHeaders = Object.fromEntries(
       await (await import('next/headers')).headers().entries()
     );
   }
 
-  const { omitUserHeaders, headers, ...requestOptions } = options || {};
-  // Add or remove existing user headers based on the omitUserHeaders flag
+  const { omitUserHeaders, headers, skipAuthRecovery, _authRetried, ...requestOptions } =
+    options || {};
   const requestHeaders = omitUserHeaders
     ? headers
     : { ...userHeaders, ...(headers || {}) };
 
-  return fetch(absoluteUrl, {
+  const response = await fetch(absoluteUrl, {
     cache: 'no-cache',
     ...requestOptions,
     headers: requestHeaders,
-  }).then(async (res) => {
-    if (!res.ok) {
-      const error = await res.json();
-      throw new RequestError(
-        error.message,
-        url,
-        res.status,
-        error.validationErrors,
-        {
-          cause: error.cause,
-        }
-      );
-    }
-    return res;
   });
+
+  if (
+    !response.ok &&
+    response.status === 401 &&
+    shouldAttemptAuthRecovery(url, { skipAuthRecovery, _authRetried })
+  ) {
+    const returnTo = `${window.location.pathname}${window.location.search}`;
+    const recovery = await handleApiUnauthorized({
+      returnTo,
+      notice: 'session-expired',
+    });
+
+    if (recovery.kind === 'recovered') {
+      return request(url, {
+        ...options,
+        _authRetried: true,
+      });
+    }
+  }
+
+  if (!response.ok) {
+    throw await readRequestError(response, url);
+  }
+
+  return response;
 }

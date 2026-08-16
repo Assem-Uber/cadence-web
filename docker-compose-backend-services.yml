@@ -47,6 +47,17 @@ services:
       - "9200:9200"
     environment:
       - discovery.type=single-node
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    hostname: keycloak
+    command: start-dev --import-realm --http-port=8080
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./docker/keycloak/cadence-realm.json:/opt/keycloak/data/import/cadence-realm.json:ro
   cadence:
     image: ubercadence/server:master-auto-setup
     ports:
@@ -60,16 +71,19 @@ services:
       - "7939:7939"
       - "7833:7833"
     environment:
+      - "CADENCE_CONFIG_FILE=/etc/cadence/config/cadence-oauth-keycloak.yaml"
       - "CASSANDRA_SEEDS=cassandra"
       - "PROMETHEUS_ENDPOINT_0=0.0.0.0:8000"
       - "PROMETHEUS_ENDPOINT_1=0.0.0.0:8001"
       - "PROMETHEUS_ENDPOINT_2=0.0.0.0:8002"
       - "PROMETHEUS_ENDPOINT_3=0.0.0.0:8003"
-      - "DYNAMIC_CONFIG_FILE_PATH=dynamicconfig/development_es.yaml"
       - "ENABLE_ES=true"
       - "ES_SEEDS=elasticsearch"
       - "ES_VERSION=v7"
       - "KAFKA_SEEDS=kafka"
+    volumes:
+      - ./docker/cadence/config/cadence-oauth-keycloak.yaml:/etc/cadence/config/cadence-oauth-keycloak.yaml:ro
+      # dynamicconfig + OAuth test keys ship in ubercadence/server:master-auto-setup at /etc/cadence/
     depends_on:
       cassandra:
         condition: service_healthy
@@ -78,6 +92,8 @@ services:
       kafka:
         condition: service_started
       elasticsearch:
+        condition: service_started
+      keycloak:
         condition: service_started
   grafana:
     image: grafana/grafana

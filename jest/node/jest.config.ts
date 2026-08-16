@@ -6,6 +6,9 @@ const esModules = [
   'decode-uri-component',
   'split-on-first',
   'filter-obj',
+  'jose',
+  'openid-client',
+  'oauth4webapi',
 ];
 
 const createJestConfig = nextJest({

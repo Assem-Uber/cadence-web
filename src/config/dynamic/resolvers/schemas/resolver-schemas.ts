@@ -20,6 +20,20 @@ const resolverSchemas: ResolverSchemas = {
     args: z.undefined(),
     returnType: z.enum(AUTH_STRATEGY_VALUES_CONFIG),
   },
+  OIDC_AUTH_CONFIG: {
+    args: z.undefined(),
+    returnType: z
+      .object({
+        issuer: z.string(),
+        clientId: z.string(),
+        clientSecret: z.string(),
+        redirectUri: z.string(),
+        sessionSecret: z.string(),
+        scopes: z.string(),
+        allowInsecureRequests: z.boolean(),
+      })
+      .nullable(),
+  },
   CLUSTERS: {
     args: z.undefined(),
     returnType: z.array(
@@ -40,16 +54,6 @@ const resolverSchemas: ResolverSchemas = {
         clusterName: z.string(),
       })
     ),
-  },
-  DOMAIN_ACCESS: {
-    args: z.object({
-      cluster: z.string(),
-      domain: z.string(),
-    }),
-    returnType: z.object({
-      canRead: z.boolean(),
-      canWrite: z.boolean(),
-    }),
   },
   WORKFLOW_ACTIONS_ENABLED: {
     args: z.object({

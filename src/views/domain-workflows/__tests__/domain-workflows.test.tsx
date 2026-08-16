@@ -44,6 +44,32 @@ describe('DomainWorkflows', () => {
 
     expect(renderErrorMessage).toEqual('Failed to fetch cluster info');
   });
+
+  it('should render basic workflows for authenticated non-admin users', async () => {
+    await setup({
+      isAdvancedVisibility: true,
+      authResponse: {
+        authEnabled: true,
+        auth: { isValidToken: true },
+      },
+      domainAccess: { canRead: true, canWrite: true, isAdmin: false },
+    });
+
+    expect(await screen.findByText('Basic Workflows')).toBeInTheDocument();
+  });
+
+  it('should render advanced workflows for admin users', async () => {
+    await setup({
+      isAdvancedVisibility: true,
+      authResponse: {
+        authEnabled: true,
+        auth: { isValidToken: true },
+      },
+      domainAccess: { canRead: true, canWrite: true, isAdmin: true },
+    });
+
+    expect(await screen.findByText('Advanced Workflows')).toBeInTheDocument();
+  });
 });
 
 async function setup({
@@ -52,13 +78,13 @@ async function setup({
   authResponse = {
     authEnabled: false,
     auth: { isValidToken: false },
-    isAdmin: false,
-    groups: [],
   },
+  domainAccess = { canRead: true, canWrite: true, isAdmin: false },
 }: {
   error?: boolean;
   isAdvancedVisibility?: boolean;
   authResponse?: Record<string, unknown>;
+  domainAccess?: Record<string, unknown>;
 }) {
   const props: DomainPageTabContentProps = {
     domain: 'test-domain',
@@ -76,6 +102,12 @@ async function setup({
           httpMethod: 'GET',
           mockOnce: false,
           jsonResponse: false,
+        },
+        {
+          path: '/api/domains/test-domain/test-cluster/access',
+          httpMethod: 'GET',
+          mockOnce: false,
+          jsonResponse: domainAccess,
         },
         {
           path: '/api/auth/me',

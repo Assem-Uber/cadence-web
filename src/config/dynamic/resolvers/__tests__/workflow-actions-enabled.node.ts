@@ -1,10 +1,19 @@
-import { FULL_ACCESS, NO_ACCESS } from '@/utils/auth/auth-shared.constants';
+import { type DomainAccessResponse } from '@/route-handlers/domain-access/domain-access.types';
+import { FULL_ACCESS, NO_ACCESS } from '@/utils/auth/auth.constants';
+import request from '@/utils/request';
 
-import domainAccess from '../domain-access';
 import workflowActionsEnabled from '../workflow-actions-enabled';
 
-jest.mock('../domain-access', () => jest.fn());
-const mockDomainAccess = jest.mocked(domainAccess);
+jest.mock('@/utils/request', () => jest.fn());
+const mockRequest = jest.mocked(request);
+
+const mockDomainAccess = {
+  mockResolvedValue: (access: DomainAccessResponse) =>
+    mockRequest.mockResolvedValue({
+      json: async () => access,
+    } as Response),
+  mockRejectedValue: (error: Error) => mockRequest.mockRejectedValue(error),
+};
 
 describe(workflowActionsEnabled.name, () => {
   beforeEach(() => {
@@ -12,17 +21,16 @@ describe(workflowActionsEnabled.name, () => {
   });
 
   it('returns enabled actions when user has write access', async () => {
-    mockDomainAccess.mockResolvedValue(FULL_ACCESS);
+    mockDomainAccess.mockResolvedValue({ ...FULL_ACCESS, isAdmin: false });
 
     const result = await workflowActionsEnabled({
       cluster: 'test-cluster',
       domain: 'test-domain',
     });
 
-    expect(mockDomainAccess).toHaveBeenCalledWith({
-      cluster: 'test-cluster',
-      domain: 'test-domain',
-    });
+    expect(mockRequest).toHaveBeenCalledWith(
+      '/api/domains/test-domain/test-cluster/access'
+    );
     expect(result).toEqual({
       terminate: 'ENABLED',
       cancel: 'ENABLED',
@@ -34,7 +42,7 @@ describe(workflowActionsEnabled.name, () => {
   });
 
   it('returns unauthorized actions when write access is denied', async () => {
-    mockDomainAccess.mockResolvedValue(NO_ACCESS);
+    mockDomainAccess.mockResolvedValue({ ...NO_ACCESS, isAdmin: false });
 
     const result = await workflowActionsEnabled({
       cluster: 'test-cluster',
