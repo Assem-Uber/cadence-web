@@ -12,8 +12,15 @@ export default async function HomeLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const returnTo = await getRequestReturnTo(headers().get('x-cadence-return-to'));
-  const loginRedirect = await getLoginRedirectIfNeeded(cookies(), returnTo);
+  const cookieStore = cookies();
+  const headerStore = headers();
+  const returnTo = await getRequestReturnTo(
+    headerStore.get('x-cadence-return-to')
+  );
+  const loginRedirect = await getLoginRedirectIfNeeded(
+    { cookies: cookieStore, headers: headerStore },
+    returnTo
+  );
   if (loginRedirect) {
     redirect(loginRedirect);
   }

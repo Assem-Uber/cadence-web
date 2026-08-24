@@ -15,18 +15,18 @@ function isJwtLoginReturnTo(returnTo: string): boolean {
 
 const jwtAuthStrategy: AuthServerStrategy = {
   server: {
-    resolveContext(cookies) {
-      return resolveJwtAuthContext(cookies);
+    resolveContext(request) {
+      return resolveJwtAuthContext(request);
     },
-    async getLoginRedirectIfNeeded(cookieStore, returnTo) {
-      const authContext = await resolveJwtAuthContext(cookieStore);
+    async getLoginRedirectIfNeeded(request, returnTo) {
+      const authContext = await resolveJwtAuthContext(request);
       if (authContext.auth.isValidToken || isJwtLoginReturnTo(returnTo)) {
         return null;
       }
 
       return buildJwtLoginPath(returnTo);
     },
-    recoverSession(_cookies, ctx) {
+    recoverSession(_request, ctx) {
       return recoverJwtSession(ctx);
     },
   },

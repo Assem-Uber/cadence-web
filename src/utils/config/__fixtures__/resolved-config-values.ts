@@ -5,6 +5,7 @@ const mockResolvedConfigValues: LoadedConfigResolvedValues = {
   CADENCE_WEB_PORT: '3000',
   CADENCE_WEB_AUTH_STRATEGY: 'disabled',
   OIDC_AUTH_CONFIG: null,
+  TRUSTED_HEADER_AUTH_CONFIG: null,
   CLUSTERS: [
     {
       clusterName: 'mock-cluster1',

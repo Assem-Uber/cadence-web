@@ -24,6 +24,10 @@ describe(resolveClientLoginAction.name, () => {
     expect(resolveClientLoginAction('disabled')).toBeNull();
   });
 
+  it('returns null for trusted-header strategy', () => {
+    expect(resolveClientLoginAction('trusted-header')).toBeNull();
+  });
+
   it('redirects for oidc strategy', () => {
     const assign = jest.fn();
     Object.defineProperty(window, 'location', {
@@ -41,6 +45,10 @@ describe(resolveClientLoginAction.name, () => {
 describe(resolveClientLogoutRedirect.name, () => {
   it('returns false for jwt strategy without redirect when disabled', () => {
     expect(resolveClientLogoutRedirect('disabled')).toBe(false);
+  });
+
+  it('returns false for trusted-header strategy', () => {
+    expect(resolveClientLogoutRedirect('trusted-header')).toBe(false);
   });
 
   it('redirects jwt logout to the login page', () => {

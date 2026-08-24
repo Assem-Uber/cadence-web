@@ -23,12 +23,15 @@ const mockGetConfigValue = getConfigValue as jest.MockedFunction<
 const SESSION_SECRET = 'test-oidc-session-secret-32bytes!!';
 const CTX = { returnTo: '/domains', notice: 'session-expired' as const };
 
-function sessionCookieStore(sessionToken: string) {
+function sessionAuthRequest(sessionToken: string) {
   return {
-    get: (name: string) =>
-      name === `${CADENCE_OIDC_SESSION_COOKIE_NAME}.0`
-        ? { value: sessionToken }
-        : undefined,
+    cookies: {
+      get: (name: string) =>
+        name === `${CADENCE_OIDC_SESSION_COOKIE_NAME}.0`
+          ? { value: sessionToken }
+          : undefined,
+    },
+    headers: { get: () => null },
   };
 }
 
@@ -48,7 +51,7 @@ describe(recoverOidcSession.name, () => {
     });
 
     const outcome = await recoverOidcSession(
-      sessionCookieStore(sessionToken),
+      sessionAuthRequest(sessionToken),
       CTX
     );
 
@@ -61,7 +64,7 @@ describe(recoverOidcSession.name, () => {
     const sessionToken = await buildSessionToken({ refreshToken: undefined });
 
     const outcome = await recoverOidcSession(
-      sessionCookieStore(sessionToken),
+      sessionAuthRequest(sessionToken),
       CTX
     );
 

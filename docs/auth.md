@@ -23,19 +23,20 @@ For server-side configuration (keys, authorizer settings, TTLs), use  the [Caden
 
 Cadence Web does **not** implement a full identity provider and does **not** verify JWT signatures. It **decodes** the JWT payload for UX and routing decisions; the Cadence server **validates** the token and enforces authorization.
 
-**Strategy switch.** `CADENCE_WEB_AUTH_STRATEGY` is resolved at server start (`disabled`, `jwt`, or `oidc`). Invalid or missing values behave as `disabled`.
+**Strategy switch.** `CADENCE_WEB_AUTH_STRATEGY` is resolved at server start (`disabled`, `jwt`, `oidc`, or `trusted-header`). Invalid or missing values behave as `disabled`.
 
 | Strategy | Behavior |
 | -------- | -------- |
 | `disabled` (default) | No login required. No token is read from the cookie or sent to Cadence. Domain/action resolvers treat the user as having full access for UI purposes. |
 | `jwt` | Auth is on: a JWT in the **`cadence-authorization`** HttpOnly cookie is decoded. If valid and not expired, it is attached to gRPC calls. Unauthenticated requests are redirected to **`/login`**; expired or signed-out sessions return there with a `notice` query param. |
 | `oidc` | Cadence Web acts as an OIDC relying party (Authorization Code + PKCE). Tokens live in an encrypted (JWE) HttpOnly session cookie; the access token is attached to gRPC calls. Unauthenticated requests are redirected to the identity provider. |
+| `trusted-header` | Cadence Web trusts identity headers set by an upstream reverse proxy/gateway that has already authenticated the request (perimeter auth). No login page, no cookie, no token decoding — identity, groups and admin flag are read from configured request headers on every call. |
 
 **Temporary web-side logic.** The Cadence backend supports customizable auth providers, so anything the web tier currently decides (claim mapping, group matching, user identity) is an interim default, not a contract. Every such place is marked with a greppable `TODO(cadence-backend):` comment; search for that tag to find all logic that should move behind backend/provider APIs once they exist.
 
 **Cookie and token handling.** The cookie name is `cadence-authorization`. Server-side code (`resolveAuthContext`) reads the cookie, base64-decodes the JWT payload, and validates the shape with a small schema (for example `sub` or `name` required; optional `admin`, `groups`, `exp`). Expired or malformed tokens are dropped; the raw JWT never leaves the server. `GET /api/auth/me` returns the session snapshot only (`authEnabled`, `authStrategy`, `auth.isValidToken`, `auth.expiresAtMs`). User identity is served by `GET /api/auth/user`, and per-domain permissions by `GET /api/domains/[domain]/[cluster]/access` and `.../access-groups`. Each of these endpoints has a default implementation based on token claims and domain metadata; their route handlers are the override points for deployments whose user info or permissions come from external providers, and are designed to be swapped for Cadence backend API calls later.
 
-**Backend calls.** When strategy is `jwt` or `oidc` and a valid token is present, `getGrpcMetadataFromAuth` adds `cadence-authorization: <token>` to gRPC metadata so Cadence can authorize the request.
+**Backend calls.** gRPC metadata is strategy-owned: `jwt`/`oidc` add `cadence-authorization: <token>` via `getGrpcMetadataFromAuth`. `trusted-header` instead copies whichever request headers `CADENCE_WEB_TRUSTED_HEADER_GRPC_METADATA` maps into gRPC metadata keys (see below); a strategy can override this via an optional `getGrpcMetadata` hook, defaulting to the token-based behavior when omitted.
 
 ### OIDC strategy
 
@@ -63,6 +64,28 @@ With `CADENCE_WEB_AUTH_STRATEGY=oidc`, Cadence Web runs a standard OIDC relying-
 | `CADENCE_WEB_OIDC_SESSION_SECRET` | yes | ≥32 bytes; key material for the session cookie JWE (rotating it invalidates sessions). |
 | `CADENCE_WEB_OIDC_SCOPES` | no | Defaults to `openid profile email`; `openid` is always enforced. |
 | `CADENCE_WEB_OIDC_ALLOW_INSECURE` | no | Allows an `http:` issuer. Auto-enabled outside production for local development; production requires this explicit opt-in, otherwise startup fails. |
+
+### Trusted-header strategy
+
+With `CADENCE_WEB_AUTH_STRATEGY=trusted-header`, Cadence Web does not authenticate anyone itself — it trusts that an upstream gateway (a reverse proxy, auth sidecar, or service-mesh ingress placed in front of Cadence Web) has already authenticated the caller and injected identity as HTTP request headers. This is the classic "perimeter auth" / "auth proxy" pattern (e.g. oauth2-proxy, Envoy + an authorization filter, or any internal SSO gateway).
+
+**Trust model — this only works if the perimeter is airtight.** Cadence Web has no way to tell a header set by your gateway apart from one set by the calling browser. Whatever sits in front of Cadence Web **must strip these headers from inbound requests and set them only after authenticating the caller itself**, and Cadence Web **must not be reachable except through that gateway**. Getting this wrong lets any client impersonate any user by setting the header directly. There is no default header set — every header name is your own deployment's env-only secret, and there is no built-in way to verify the request truly came from the gateway unless you also configure the shared-secret defense below.
+
+**Behavior.** There is no login page, no cookie, and no token to decode: identity, groups, and admin status are read straight from configured request headers on every request. Login/logout are no-ops in the browser (identity changes only when the gateway's session changes); `POST /api/auth/recover` always returns `noop`.
+
+**Optional shared-secret defense.** As defense in depth (not a replacement for network isolation), set `CADENCE_WEB_TRUSTED_HEADER_SHARED_SECRET_HEADER` and `CADENCE_WEB_TRUSTED_HEADER_SHARED_SECRET` together. Cadence Web then only trusts the identity headers when the incoming request carries that header set to that exact value — a static secret known to the gateway and Cadence Web, never sent to the browser. This guards against a misconfigured route that bypasses the gateway; it is not a session token and does not replace CSRF protection.
+
+**Environment variables.** Header names are intentionally not hardcoded or defaulted anywhere in this codebase — pick names that make sense for your gateway and set them here.
+
+| Variable | Required | Description |
+| -------- | -------- | ----------- |
+| `CADENCE_WEB_TRUSTED_HEADER_USER_ID` | yes | Header carrying the caller's stable user ID (e.g. `x-auth-request-user`). A request without this header (or without a valid shared secret, if configured) is treated as unauthenticated. |
+| `CADENCE_WEB_TRUSTED_HEADER_EMAIL` | no | Header carrying the caller's email; used as a display-name fallback. |
+| `CADENCE_WEB_TRUSTED_HEADER_NAME` | no | Header carrying the caller's display name. |
+| `CADENCE_WEB_TRUSTED_HEADER_GROUPS` | no | Header carrying a comma/space-separated list of group names, used the same way as JWT/OIDC groups for domain read/write checks. |
+| `CADENCE_WEB_TRUSTED_HEADER_ADMIN` | no | Header whose value (`true`/`1`/`yes`) marks the caller as an admin. |
+| `CADENCE_WEB_TRUSTED_HEADER_GRPC_METADATA` | no | Comma-separated `inbound-header:outbound-key` pairs copied verbatim from the request into outbound Cadence gRPC metadata, e.g. `x-auth-request-user:caller-id,x-auth-request-groups:caller-groups`. Use this if your Cadence backend authorizer expects the gateway-asserted identity as gRPC metadata rather than a JWT. |
+| `CADENCE_WEB_TRUSTED_HEADER_SHARED_SECRET_HEADER` / `CADENCE_WEB_TRUSTED_HEADER_SHARED_SECRET` | no (set together) | Optional defense-in-depth pair described above. |
 
 **UI and dynamic config.** The domain access API uses auth context plus domain metadata from the server to compute per-domain access. `WORKFLOW_ACTIONS_ENABLED` / `SCHEDULE_ACTIONS_ENABLED` call that same API so buttons and actions match what the backend will allow. The nav bar and hooks such as `useUserInfo` / `useAuthLifecycle` drive login, logout, and expiry-aware behavior.
 
@@ -98,6 +121,15 @@ Logout: use the UI logout control (redirects to `/login`) or `DELETE /api/auth/t
 3. Visiting any protected page redirects to the IdP; after login the session cookie is set and the access token is forwarded to Cadence on every gRPC call.
 
 Logout: use the UI logout control (ends the IdP session too when supported) or `GET /api/auth/oidc/logout`.
+
+### Trusted-header strategy
+
+1. Deploy an auth gateway/proxy in front of Cadence Web that authenticates every request and injects identity headers, and make sure Cadence Web is **not** reachable by any other path.
+2. Confirm the gateway strips those same header names from client-supplied requests before setting its own (otherwise a client can forge them).
+3. Set `CADENCE_WEB_AUTH_STRATEGY=trusted-header` plus at least `CADENCE_WEB_TRUSTED_HEADER_USER_ID` (see the table above); restart Cadence Web.
+4. Optionally set the shared-secret pair and/or `CADENCE_WEB_TRUSTED_HEADER_GRPC_METADATA` for your backend authorizer.
+
+There is no logout action in the UI for this strategy — signing out happens at the gateway/IdP.
 
 ### Example JWT claims (illustrative)
 

@@ -39,7 +39,7 @@ describe('jwtAuthStrategy.server.getLoginRedirectIfNeeded', () => {
 
     await expect(
       jwtAuthStrategy.server.getLoginRedirectIfNeeded(
-        { get: jest.fn() },
+        { cookies: { get: jest.fn() }, headers: { get: jest.fn() } },
         '/domains/foo'
       )
     ).resolves.toBe(null);
@@ -55,7 +55,7 @@ describe('jwtAuthStrategy.server.getLoginRedirectIfNeeded', () => {
 
     await expect(
       jwtAuthStrategy.server.getLoginRedirectIfNeeded(
-        { get: jest.fn() },
+        { cookies: { get: jest.fn() }, headers: { get: jest.fn() } },
         '/domains/foo/bar'
       )
     ).resolves.toBe(
@@ -73,7 +73,7 @@ describe('jwtAuthStrategy.server.getLoginRedirectIfNeeded', () => {
 
     await expect(
       jwtAuthStrategy.server.getLoginRedirectIfNeeded(
-        { get: jest.fn() },
+        { cookies: { get: jest.fn() }, headers: { get: jest.fn() } },
         `${JWT_LOGIN_PATH}?returnTo=%2Fdomains`
       )
     ).resolves.toBe(null);
@@ -84,7 +84,7 @@ describe('jwtAuthStrategy.server.recoverSession', () => {
   it('redirects to login and clears session', async () => {
     await expect(
       jwtAuthStrategy.server.recoverSession(
-        { get: jest.fn() },
+        { cookies: { get: jest.fn() }, headers: { get: jest.fn() } },
         { returnTo: '/domains/foo', notice: 'session-expired' }
       )
     ).resolves.toEqual({

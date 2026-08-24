@@ -1,1 +1,5 @@
-export type AuthStrategyConfigValue = 'disabled' | 'jwt' | 'oidc';
+export type AuthStrategyConfigValue =
+  | 'disabled'
+  | 'jwt'
+  | 'oidc'
+  | 'trusted-header';

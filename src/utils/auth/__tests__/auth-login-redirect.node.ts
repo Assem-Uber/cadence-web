@@ -28,7 +28,10 @@ describe(getLoginRedirectIfNeeded.name, () => {
     });
 
     await expect(
-      getLoginRedirectIfNeeded({ get: jest.fn() }, '/domains/foo/bar')
+      getLoginRedirectIfNeeded(
+        { cookies: { get: jest.fn() }, headers: { get: jest.fn() } },
+        '/domains/foo/bar'
+      )
     ).resolves.toBe(
       `${OIDC_LOGIN_PATH}?returnTo=${encodeURIComponent('/domains/foo/bar')}`
     );
@@ -44,7 +47,10 @@ describe(getLoginRedirectIfNeeded.name, () => {
       },
     });
 
-    await getLoginRedirectIfNeeded({ get: jest.fn() }, '//evil.test/path');
+    await getLoginRedirectIfNeeded(
+      { cookies: { get: jest.fn() }, headers: { get: jest.fn() } },
+      '//evil.test/path'
+    );
 
     expect(getLoginRedirectIfNeededMock).toHaveBeenCalledWith(
       expect.anything(),

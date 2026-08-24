@@ -32,7 +32,7 @@ describe('oidcAuthStrategy.server.getLoginRedirectIfNeeded', () => {
 
     await expect(
       oidcAuthStrategy.server.getLoginRedirectIfNeeded(
-        { get: jest.fn() },
+        { cookies: { get: jest.fn() }, headers: { get: jest.fn() } },
         '/domains/foo'
       )
     ).resolves.toBe(null);
@@ -48,7 +48,7 @@ describe('oidcAuthStrategy.server.getLoginRedirectIfNeeded', () => {
 
     await expect(
       oidcAuthStrategy.server.getLoginRedirectIfNeeded(
-        { get: jest.fn() },
+        { cookies: { get: jest.fn() }, headers: { get: jest.fn() } },
         '/domains/foo/bar'
       )
     ).resolves.toBe(

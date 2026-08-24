@@ -1,15 +1,18 @@
 import { type NextRequest } from 'next/server';
 
-import { getGrpcMetadataFromAuth } from '@/utils/auth/auth-context';
+import { resolveGrpcMetadataForAuth } from '@/utils/auth/auth-context';
 
 import grpcMetadataMiddleware from '../grpc-metadata';
 
 jest.mock('@/utils/auth/auth-context', () => ({
-  getGrpcMetadataFromAuth: jest.fn(),
+  resolveGrpcMetadataForAuth: jest.fn(),
 }));
-const mockGetGrpcMetadataFromAuth = jest.mocked(getGrpcMetadataFromAuth);
+const mockResolveGrpcMetadataForAuth = jest.mocked(resolveGrpcMetadataForAuth);
 const mockRequest = {
   cookies: {
+    get: jest.fn(),
+  },
+  headers: {
     get: jest.fn(),
   },
 } as unknown as NextRequest;
@@ -21,7 +24,7 @@ describe('grpc-metadata middleware', () => {
   });
 
   it('returns grpc metadata derived from auth info', async () => {
-    mockGetGrpcMetadataFromAuth.mockReturnValue({
+    mockResolveGrpcMetadataForAuth.mockResolvedValue({
       'cadence-authorization': 'abc',
     });
 
@@ -40,10 +43,14 @@ describe('grpc-metadata middleware', () => {
       'grpcMetadata',
       { 'cadence-authorization': 'abc' },
     ]);
+    expect(mockResolveGrpcMetadataForAuth).toHaveBeenCalledWith(ctx.authInfo, {
+      cookies: mockRequest.cookies,
+      headers: mockRequest.headers,
+    });
   });
 
   it('returns undefined metadata when auth provides none', async () => {
-    mockGetGrpcMetadataFromAuth.mockReturnValue(undefined);
+    mockResolveGrpcMetadataForAuth.mockResolvedValue(undefined);
 
     const result = await grpcMetadataMiddleware(mockRequest, mockOptions, {});
 

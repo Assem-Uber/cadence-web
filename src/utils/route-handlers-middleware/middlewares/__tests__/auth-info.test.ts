@@ -12,6 +12,9 @@ const mockRequest = {
   cookies: {
     get: jest.fn(),
   },
+  headers: {
+    get: jest.fn(),
+  },
 } as unknown as NextRequest;
 const mockOptions = { params: {} };
 

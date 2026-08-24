@@ -5,7 +5,9 @@ import {
   getPublicAuthContext,
   getGrpcMetadataFromAuth,
   resolveAuthContext,
+  resolveGrpcMetadataForAuth,
 } from '@/utils/auth/auth-context';
+import { type CookieReader } from '@/utils/auth/auth.types';
 import { getDomainAccessForUser } from '@/utils/auth/authorization/domain-access';
 import getConfigValue from '@/utils/config/get-config-value';
 
@@ -14,6 +16,12 @@ jest.mock('@/utils/config/get-config-value');
 const mockGetConfigValue = getConfigValue as jest.MockedFunction<
   typeof getConfigValue
 >;
+
+const noHeaders = { get: () => null };
+const requestWithCookies = (cookies: CookieReader) => ({
+  cookies,
+  headers: noHeaders,
+});
 
 const buildToken = (claims: Record<string, unknown>) => {
   const payload = Buffer.from(JSON.stringify(claims)).toString('base64url');
@@ -37,9 +45,9 @@ describe('auth-context utilities', () => {
         return '';
       });
 
-      const authContext = await resolveAuthContext({
-        get: () => undefined,
-      });
+      const authContext = await resolveAuthContext(
+        requestWithCookies({ get: () => undefined })
+      );
 
       expect(authContext).toMatchObject({
         authEnabled: false,
@@ -64,10 +72,12 @@ describe('auth-context utilities', () => {
         return '';
       });
 
-      const authContext = await resolveAuthContext({
-        get: (name: string) =>
-          name === CADENCE_AUTH_COOKIE_NAME ? { value: token } : undefined,
-      });
+      const authContext = await resolveAuthContext(
+        requestWithCookies({
+          get: (name: string) =>
+            name === CADENCE_AUTH_COOKIE_NAME ? { value: token } : undefined,
+        })
+      );
 
       expect(authContext).toMatchObject({
         authEnabled: true,
@@ -88,9 +98,9 @@ describe('auth-context utilities', () => {
         return '';
       });
 
-      const authContext = await resolveAuthContext({
-        get: () => undefined,
-      });
+      const authContext = await resolveAuthContext(
+        requestWithCookies({ get: () => undefined })
+      );
 
       expect(authContext).toMatchObject({
         authEnabled: true,
@@ -108,10 +118,12 @@ describe('auth-context utilities', () => {
         return '';
       });
 
-      const authContext = await resolveAuthContext({
-        get: (name: string) =>
-          name === CADENCE_AUTH_COOKIE_NAME ? { value: token } : undefined,
-      });
+      const authContext = await resolveAuthContext(
+        requestWithCookies({
+          get: (name: string) =>
+            name === CADENCE_AUTH_COOKIE_NAME ? { value: token } : undefined,
+        })
+      );
 
       expect(authContext).toMatchObject({
         authEnabled: true,
@@ -132,10 +144,12 @@ describe('auth-context utilities', () => {
         return '';
       });
 
-      const authContext = await resolveAuthContext({
-        get: (name: string) =>
-          name === CADENCE_AUTH_COOKIE_NAME ? { value: token } : undefined,
-      });
+      const authContext = await resolveAuthContext(
+        requestWithCookies({
+          get: (name: string) =>
+            name === CADENCE_AUTH_COOKIE_NAME ? { value: token } : undefined,
+        })
+      );
 
       expect(authContext).toMatchObject({
         authEnabled: true,
@@ -165,10 +179,12 @@ describe('auth-context utilities', () => {
         return '';
       });
 
-      const authContext = await resolveAuthContext({
-        get: (name: string) =>
-          name === CADENCE_AUTH_COOKIE_NAME ? { value: token } : undefined,
-      });
+      const authContext = await resolveAuthContext(
+        requestWithCookies({
+          get: (name: string) =>
+            name === CADENCE_AUTH_COOKIE_NAME ? { value: token } : undefined,
+        })
+      );
 
       expect(authContext).toMatchObject({
         authEnabled: true,
@@ -199,10 +215,12 @@ describe('auth-context utilities', () => {
         return '';
       });
 
-      const authContext = await resolveAuthContext({
-        get: (name: string) =>
-          name === CADENCE_AUTH_COOKIE_NAME ? { value: token } : undefined,
-      });
+      const authContext = await resolveAuthContext(
+        requestWithCookies({
+          get: (name: string) =>
+            name === CADENCE_AUTH_COOKIE_NAME ? { value: token } : undefined,
+        })
+      );
 
       expect(authContext.auth.expiresAtMs).toBe(expSeconds * 1000);
 
@@ -219,10 +237,12 @@ describe('auth-context utilities', () => {
         return '';
       });
 
-      const authContext = await resolveAuthContext({
-        get: (name: string) =>
-          name === CADENCE_AUTH_COOKIE_NAME ? { value: token } : undefined,
-      });
+      const authContext = await resolveAuthContext(
+        requestWithCookies({
+          get: (name: string) =>
+            name === CADENCE_AUTH_COOKIE_NAME ? { value: token } : undefined,
+        })
+      );
 
       expect(authContext.auth.token).toBeUndefined();
       expect(authContext.auth.isValidToken).toBe(false);
@@ -495,6 +515,11 @@ describe('auth-context utilities', () => {
       ).toBeUndefined();
     });
 
+    it('returns undefined for a null or undefined context', () => {
+      expect(getGrpcMetadataFromAuth(null)).toBeUndefined();
+      expect(getGrpcMetadataFromAuth(undefined)).toBeUndefined();
+    });
+
     it('returns undefined when auth is disabled even if token is present', () => {
       expect(
         getGrpcMetadataFromAuth({
@@ -504,6 +529,64 @@ describe('auth-context utilities', () => {
           isAdmin: false,
         })
       ).toBeUndefined();
+    });
+  });
+
+  describe(resolveGrpcMetadataForAuth.name, () => {
+    it('returns undefined for a null or undefined context', async () => {
+      await expect(resolveGrpcMetadataForAuth(null)).resolves.toBeUndefined();
+      await expect(
+        resolveGrpcMetadataForAuth(undefined)
+      ).resolves.toBeUndefined();
+    });
+
+    it('falls back to token-based metadata when the strategy has no getGrpcMetadata hook', async () => {
+      mockGetConfigValue.mockImplementation(async (key: string) => {
+        if (key === 'CADENCE_WEB_AUTH_STRATEGY') return 'jwt';
+        return '';
+      });
+
+      await expect(
+        resolveGrpcMetadataForAuth({
+          authEnabled: true,
+          auth: { isValidToken: true, token: 'abc' },
+          groups: [],
+          isAdmin: false,
+        })
+      ).resolves.toEqual({ 'cadence-authorization': 'abc' });
+    });
+
+    it('delegates to the strategy gRPC metadata hook when one is defined', async () => {
+      mockGetConfigValue.mockImplementation(async (key: string) => {
+        if (key === 'CADENCE_WEB_AUTH_STRATEGY') return 'trusted-header';
+        if (key === 'TRUSTED_HEADER_AUTH_CONFIG') {
+          return {
+            userIdHeader: 'x-test-user-id',
+            grpcMetadataMap: [
+              { inboundHeader: 'x-test-user-id', outboundKey: 'caller-id' },
+            ],
+          };
+        }
+        return '';
+      });
+
+      await expect(
+        resolveGrpcMetadataForAuth(
+          {
+            authEnabled: true,
+            auth: { isValidToken: true },
+            groups: [],
+            isAdmin: false,
+          },
+          {
+            cookies: { get: () => undefined },
+            headers: {
+              get: (name: string) =>
+                name === 'x-test-user-id' ? 'alice' : null,
+            },
+          }
+        )
+      ).resolves.toEqual({ 'caller-id': 'alice' });
     });
   });
 });

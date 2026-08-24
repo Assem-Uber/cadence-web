@@ -9,8 +9,8 @@ import { resolveOidcAuthContext } from './resolve-oidc-auth-context';
 const oidcAuthStrategy: AuthServerStrategy = {
   server: {
     resolveContext: resolveOidcAuthContext,
-    async getLoginRedirectIfNeeded(cookieStore, returnTo) {
-      const authContext = await resolveOidcAuthContext(cookieStore);
+    async getLoginRedirectIfNeeded(request, returnTo) {
+      const authContext = await resolveOidcAuthContext(request);
       if (authContext.auth.isValidToken) {
         return null;
       }

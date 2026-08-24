@@ -1,16 +1,16 @@
 import 'server-only';
 
-import { type CookieReader } from '@/utils/auth/auth.types';
+import { type AuthRequest } from '@/utils/auth/auth.types';
 import { sanitizeReturnTo } from '@/utils/auth/helpers/sanitize-return-to';
 import { resolveAuthStrategy } from '@/utils/auth/strategies/resolve-auth-strategy';
 
 export async function getLoginRedirectIfNeeded(
-  cookieStore: CookieReader,
+  request: AuthRequest,
   returnTo: string
 ): Promise<string | null> {
   const strategy = await resolveAuthStrategy();
   return strategy.server.getLoginRedirectIfNeeded(
-    cookieStore,
+    request,
     sanitizeReturnTo(returnTo)
   );
 }

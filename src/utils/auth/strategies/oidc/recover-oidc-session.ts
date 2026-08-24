@@ -6,7 +6,7 @@ import { OIDC_SESSION_COOKIE_MAX_AGE_SECONDS } from '@/utils/auth/auth.constants
 import {
   type AuthFailureContext,
   type AuthRecoveryOutcome,
-  type CookieReader,
+  type AuthRequest,
 } from '@/utils/auth/auth.types';
 import getConfigValue from '@/utils/config/get-config-value';
 
@@ -30,7 +30,7 @@ function redirectOutcome(
 }
 
 export async function recoverOidcSession(
-  cookieStore: CookieReader,
+  request: AuthRequest,
   ctx: AuthFailureContext
 ): Promise<AuthRecoveryOutcome> {
   const authStrategy = await getConfigValue('CADENCE_WEB_AUTH_STRATEGY');
@@ -39,7 +39,7 @@ export async function recoverOidcSession(
     return { result: { kind: 'noop' } };
   }
 
-  const sessionToken = readOidcSessionCookie(cookieStore)?.trim();
+  const sessionToken = readOidcSessionCookie(request.cookies)?.trim();
   if (!sessionToken) {
     return redirectOutcome(ctx, false);
   }

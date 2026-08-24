@@ -1,15 +1,17 @@
 import { CADENCE_AUTH_COOKIE_NAME } from '@/utils/auth/auth.constants';
 import {
-  type CookieReader,
+  type AuthRequest,
   type PrivateAuthContext,
 } from '@/utils/auth/auth.types';
 import { splitGroupList } from '@/utils/auth/authorization/split-group-list';
 import { decodeCadenceJwtClaims } from '@/utils/auth/helpers/decode-cadence-jwt-claims';
 
 export async function resolveJwtAuthContext(
-  cookies: CookieReader
+  request: AuthRequest
 ): Promise<PrivateAuthContext> {
-  const tokenFromCookie = cookies.get(CADENCE_AUTH_COOKIE_NAME)?.value?.trim();
+  const tokenFromCookie = request.cookies
+    .get(CADENCE_AUTH_COOKIE_NAME)
+    ?.value?.trim();
   const token = tokenFromCookie || undefined;
 
   const claims = token ? decodeCadenceJwtClaims(token) : undefined;

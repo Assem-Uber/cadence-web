@@ -8,7 +8,7 @@ import getConfigValue from '@/utils/config/get-config-value';
 
 export async function GET(request: NextRequest) {
   const [authContext, authStrategy] = await Promise.all([
-    resolveAuthContext(request.cookies),
+    resolveAuthContext({ cookies: request.cookies, headers: request.headers }),
     getConfigValue('CADENCE_WEB_AUTH_STRATEGY'),
   ]);
   return NextResponse.json(

@@ -14,6 +14,7 @@ import {
 import disabledClientPolicy from './strategies/disabled/disabled-client-actions';
 import jwtClientPolicy from './strategies/jwt/jwt-client-actions';
 import oidcClientPolicy from './strategies/oidc/oidc-client-actions';
+import trustedHeaderClientPolicy from './strategies/trusted-header/trusted-header-client-actions';
 
 export type { AuthLoginResult, AuthLogoutNotice };
 
@@ -32,6 +33,7 @@ const AUTH_CLIENT_POLICIES: Record<AuthStrategyConfigValue, AuthClientPolicy> =
     disabled: disabledClientPolicy,
     jwt: jwtClientPolicy,
     oidc: oidcClientPolicy,
+    'trusted-header': trustedHeaderClientPolicy,
   };
 
 let recoveryInFlight: Promise<AuthRecoveryResult> | null = null;

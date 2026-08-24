@@ -11,6 +11,9 @@ export async function resolveAuthStrategy(): Promise<AuthServerStrategy> {
   switch (authStrategy) {
     case 'oidc':
       return (await import('./oidc/oidc-auth-strategy')).default;
+    case 'trusted-header':
+      return (await import('./trusted-header/trusted-header-auth-strategy'))
+        .default;
     case 'jwt':
       return jwtAuthStrategy;
     case 'disabled':

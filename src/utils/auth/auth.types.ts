@@ -1,6 +1,7 @@
 import { type z } from 'zod';
 
 import { type AuthStrategyConfigValue } from '@/config/dynamic/resolvers/auth-strategy.types';
+import { type GRPCMetadata } from '@/utils/grpc/grpc-service';
 
 import { type cadenceJwtClaimsSchema } from './helpers/cadence-jwt-claims-schema';
 
@@ -12,6 +13,16 @@ export type AuthLogoutNotice = 'signed-out' | 'session-expired';
 
 export type CookieReader = {
   get: (name: string) => { value: string } | undefined;
+};
+
+export type HeaderReader = {
+  get: (name: string) => string | null;
+};
+
+/** Cookies and headers available to a strategy when resolving a request. */
+export type AuthRequest = {
+  cookies: CookieReader;
+  headers: HeaderReader;
 };
 
 // --- JWT claims ---
@@ -102,15 +113,25 @@ export type AuthClientPolicy = {
 
 /** Server-side auth policy for a strategy. Registry: resolve-auth-strategy.ts */
 export type AuthServerPolicy = {
-  resolveContext: (cookieStore: CookieReader) => Promise<PrivateAuthContext>;
+  resolveContext: (request: AuthRequest) => Promise<PrivateAuthContext>;
   getLoginRedirectIfNeeded: (
-    cookieStore: CookieReader,
+    request: AuthRequest,
     returnTo: string
   ) => Promise<string | null>;
   recoverSession: (
-    cookieStore: CookieReader,
+    request: AuthRequest,
     ctx: AuthFailureContext
   ) => Promise<AuthRecoveryOutcome>;
+  /**
+   * Outbound Cadence gRPC metadata for a resolved context. Defaults to
+   * `getGrpcMetadataFromAuth` (cadence-authorization from auth.token) when
+   * omitted; strategies whose credential isn't a forwarded token — e.g.
+   * trusted-header copying request headers — override this instead.
+   */
+  getGrpcMetadata?: (
+    authContext: PrivateAuthContext,
+    request: AuthRequest
+  ) => GRPCMetadata | undefined | Promise<GRPCMetadata | undefined>;
 };
 
 export type AuthServerStrategy = {

@@ -30,6 +30,8 @@ import {
 } from './resolvers/schedule-actions-enabled.types';
 import schedulesEnabled from './resolvers/schedules-enabled';
 import { type SchedulesEnabledResolverParams } from './resolvers/schedules-enabled.types';
+import trustedHeaderAuthConfig from './resolvers/trusted-header-auth-config';
+import { type TrustedHeaderAuthConfig } from './resolvers/trusted-header-auth-config.types';
 import workflowActionsEnabled from './resolvers/workflow-actions-enabled';
 import {
   type WorkflowActionsEnabledResolverParams,
@@ -50,6 +52,11 @@ const dynamicConfigs: {
   OIDC_AUTH_CONFIG: ConfigSyncResolverDefinition<
     undefined,
     OidcAuthConfig | null,
+    'serverStart'
+  >;
+  TRUSTED_HEADER_AUTH_CONFIG: ConfigSyncResolverDefinition<
+    undefined,
+    TrustedHeaderAuthConfig | null,
     'serverStart'
   >;
   CLUSTERS: ConfigSyncResolverDefinition<
@@ -151,6 +158,10 @@ const dynamicConfigs: {
   },
   OIDC_AUTH_CONFIG: {
     resolver: oidcAuthConfig,
+    evaluateOn: 'serverStart',
+  },
+  TRUSTED_HEADER_AUTH_CONFIG: {
+    resolver: trustedHeaderAuthConfig,
     evaluateOn: 'serverStart',
   },
   CLUSTERS: {

@@ -50,7 +50,10 @@ function clearJwtSessionCookie(request: NextRequest, response: NextResponse) {
 export async function handleAuthRecover(request: NextRequest) {
   const ctx = await parseAuthFailureContext(request);
   const strategy = await resolveAuthStrategy();
-  const outcome = await strategy.server.recoverSession(request.cookies, ctx);
+  const outcome = await strategy.server.recoverSession(
+    { cookies: request.cookies, headers: request.headers },
+    ctx
+  );
 
   const response = NextResponse.json(
     outcome.result satisfies AuthRecoveryResult,

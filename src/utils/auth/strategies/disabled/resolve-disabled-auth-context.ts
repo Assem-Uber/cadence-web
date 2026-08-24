@@ -1,12 +1,12 @@
 import 'server-only';
 
 import {
-  type CookieReader,
+  type AuthRequest,
   type PrivateAuthContext,
 } from '@/utils/auth/auth.types';
 
 export async function resolveDisabledAuthContext(
-  _cookies: CookieReader
+  _request: AuthRequest
 ): Promise<PrivateAuthContext> {
   return {
     authEnabled: false,

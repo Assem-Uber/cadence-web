@@ -16,7 +16,10 @@ import { type UserInfoResponse } from './user-info.types';
  * provider once such an API is available.
  */
 export async function getUserInfo(request: NextRequest) {
-  const authContext = await resolveAuthContext(request.cookies);
+  const authContext = await resolveAuthContext({
+    cookies: request.cookies,
+    headers: request.headers,
+  });
 
   const userInfo: UserInfoResponse = {
     id: authContext.id,

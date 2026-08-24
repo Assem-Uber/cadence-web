@@ -8,7 +8,7 @@ import {
   OIDC_SESSION_COOKIE_MAX_AGE_SECONDS,
 } from '@/utils/auth/auth.constants';
 import {
-  type CookieReader,
+  type AuthRequest,
   type PrivateAuthContext,
 } from '@/utils/auth/auth.types';
 import getConfigValue from '@/utils/config/get-config-value';
@@ -18,14 +18,14 @@ import { readOidcSessionCookie } from './oidc-cookies';
 import { decryptOidcSession } from './oidc-session';
 
 export async function resolveOidcAuthContext(
-  cookieStore: CookieReader
+  request: AuthRequest
 ): Promise<PrivateAuthContext> {
   const oidcConfig = await getConfigValue('OIDC_AUTH_CONFIG');
   if (!oidcConfig) {
     return emptyOidcAuthContext(true);
   }
 
-  const sessionToken = readOidcSessionCookie(cookieStore)?.trim();
+  const sessionToken = readOidcSessionCookie(request.cookies)?.trim();
 
   if (!sessionToken) {
     return emptyOidcAuthContext(true);
