@@ -13,7 +13,6 @@ const oidcSessionPayloadSchema = z.object({
   refreshToken: z.string().min(1).optional(),
   expiresAtMs: z.number().int().positive(),
   idToken: z.string().min(1).optional(),
-  authenticatedAtMs: z.number().int().positive(),
 });
 
 const oidcPendingPayloadSchema = z.object({

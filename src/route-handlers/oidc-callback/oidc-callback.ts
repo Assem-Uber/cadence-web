@@ -136,13 +136,7 @@ export async function handleOidcCallback(request: NextRequest) {
     );
   }
 
-  const authenticatedAtMs = Date.now();
-  const sessionCeilingMs =
-    authenticatedAtMs + OIDC_SESSION_COOKIE_MAX_AGE_SECONDS * 1000;
-  const expiresAtMs = Math.min(
-    getDevSessionExpiresAtMs(tokenExpiresAtMs),
-    sessionCeilingMs
-  );
+  const expiresAtMs = getDevSessionExpiresAtMs(tokenExpiresAtMs);
 
   const sessionPayload = await encryptOidcSession(
     {
@@ -150,7 +144,6 @@ export async function handleOidcCallback(request: NextRequest) {
       refreshToken: tokens.refresh_token,
       expiresAtMs,
       idToken: tokens.id_token,
-      authenticatedAtMs,
     },
     oidcConfig.sessionSecret,
     OIDC_SESSION_COOKIE_MAX_AGE_SECONDS

@@ -33,8 +33,9 @@ export const CADENCE_OIDC_PENDING_COOKIE_NAME = 'cadence-oidc-pending';
 export const OIDC_PENDING_COOKIE_MAX_AGE_SECONDS = 600;
 
 /**
- * Also the absolute session ceiling: token refresh never extends a session
- * past authenticatedAtMs (login time) + this value; users must re-login.
+ * Browser cookie Max-Age and JWE exp for the OIDC session. Renewed on each
+ * successful refresh. Not a session-policy cap — idle/max lifetime is the
+ * IdP's refresh / SSO configuration.
  */
 export const OIDC_SESSION_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24;
 

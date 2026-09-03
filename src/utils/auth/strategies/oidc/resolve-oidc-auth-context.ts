@@ -3,10 +3,7 @@ import 'server-only';
 // TODO(cadence-backend): temporary web-side claim decode for UI hints.
 // ponytail: claim mapping mirrors Cadence JMESPath config today; a backend
 // introspection RPC should replace web-side decode when available server-side.
-import {
-  DEFAULT_OIDC_CLAIM_MAPPING,
-  OIDC_SESSION_COOKIE_MAX_AGE_SECONDS,
-} from '@/utils/auth/auth.constants';
+import { DEFAULT_OIDC_CLAIM_MAPPING } from '@/utils/auth/auth.constants';
 import {
   type AuthRequest,
   type PrivateAuthContext,
@@ -48,14 +45,7 @@ export async function resolveOidcAuthContext(
   // Claims are best-effort UI hints; an unmappable (e.g. opaque) access token
   // does not invalidate the session — the Cadence backend enforces access.
   const mappedClaims = mapSessionClaims(session, DEFAULT_OIDC_CLAIM_MAPPING);
-
-  // Refresh only helps while the absolute session ceiling (login time + max
-  // age, mirrored in recover-oidc-session) leaves room to extend the expiry.
-  const sessionCeilingMs =
-    session.authenticatedAtMs + OIDC_SESSION_COOKIE_MAX_AGE_SECONDS * 1000;
-  const canRefresh =
-    Boolean(session.refreshToken) &&
-    (expiresAtMs === undefined || expiresAtMs < sessionCeilingMs);
+  const canRefresh = Boolean(session.refreshToken);
 
   return {
     authEnabled: true,

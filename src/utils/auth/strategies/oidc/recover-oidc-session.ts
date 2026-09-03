@@ -52,14 +52,6 @@ export async function recoverOidcSession(
     return redirectOutcome(ctx, true);
   }
 
-  // Absolute session ceiling: refresh never extends a session past login
-  // time + max age; the user must re-authenticate with the IdP.
-  const sessionCeilingMs =
-    session.authenticatedAtMs + OIDC_SESSION_COOKIE_MAX_AGE_SECONDS * 1000;
-  if (Date.now() >= sessionCeilingMs) {
-    return redirectOutcome(ctx, true);
-  }
-
   try {
     const openidConfig = await getOidcClientConfiguration(oidcConfig);
     const tokens = await client.refreshTokenGrant(
@@ -81,9 +73,8 @@ export async function recoverOidcSession(
       {
         accessToken,
         refreshToken: tokens.refresh_token ?? session.refreshToken,
-        expiresAtMs: Math.min(tokenExpiresAtMs, sessionCeilingMs),
+        expiresAtMs: tokenExpiresAtMs,
         idToken: tokens.id_token ?? session.idToken,
-        authenticatedAtMs: session.authenticatedAtMs,
       },
       oidcConfig.sessionSecret,
       OIDC_SESSION_COOKIE_MAX_AGE_SECONDS

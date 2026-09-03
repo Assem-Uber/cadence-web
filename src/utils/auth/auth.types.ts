@@ -145,8 +145,6 @@ export type OidcSessionPayload = {
   refreshToken?: string;
   expiresAtMs: number;
   idToken?: string;
-  /** Login time; anchors the absolute session ceiling across refreshes. */
-  authenticatedAtMs: number;
 };
 
 export type OidcPendingPayload = {
