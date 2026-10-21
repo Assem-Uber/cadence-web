@@ -13,85 +13,63 @@ import type {
   QueryParamSetterExtraConfig,
 } from './use-page-query-params.types';
 
-/** Cross-instance refresh after History(null) writes (no use-between). */
+// Lets sibling hook instances re-read the URL after a History write.
 const QUERY_PARAMS_SYNC_EVENT = 'cadence:page-query-params';
 
-function readWindowSearch(): string {
-  if (typeof window === 'undefined') return '';
-  return window.location.search.replace(/^\?/, '');
-}
+const readWindowSearch = () => window.location.search.replace(/^\?/, '');
 
 export default function usePageQueryParams<P extends PageQueryParams>(
   config: P,
   extraConfig?: QueryParamSetterExtraConfig
 ): [PageQueryParamValues<P>, PageQueryParamSetter<P>] {
-  const searchQueryParams = useSearchParams();
-  const [clientSearch, setClientSearch] = useState<string | null>(null);
+  const nextSearch = useSearchParams().toString();
+  // null only until mount: SSR, hydration and the first render after a Link navigation (URL bar not updated yet) use Next's value.
+  // After mount window.location is the source of truth: after racing Back/Forward Next's router state can stay stale.
+  const [windowSearch, setWindowSearch] = useState<string | null>(null);
 
   useEffect(() => {
-    const syncFromWindow = () => {
-      // Defer setState out of the History / Event dispatch turn (React 18).
-      queueMicrotask(() => setClientSearch(readWindowSearch()));
-    };
-    window.addEventListener('popstate', syncFromWindow);
-    window.addEventListener(QUERY_PARAMS_SYNC_EVENT, syncFromWindow);
+    const sync = () => setWindowSearch(readWindowSearch());
+    window.addEventListener('popstate', sync);
+    window.addEventListener(QUERY_PARAMS_SYNC_EVENT, sync);
     return () => {
-      window.removeEventListener('popstate', syncFromWindow);
-      window.removeEventListener(QUERY_PARAMS_SYNC_EVENT, syncFromWindow);
+      window.removeEventListener('popstate', sync);
+      window.removeEventListener(QUERY_PARAMS_SYNC_EVENT, sync);
     };
   }, []);
 
-  // Prefer Next searchParams when they change (App Router sync after null-state History).
+  // Next navigated (Link/router): the URL bar is updated by now.
   useEffect(() => {
-    setClientSearch(null);
-  }, [searchQueryParams]);
+    setWindowSearch(readWindowSearch());
+  }, [nextSearch]);
 
-  const search = useMemo(() => {
-    if (clientSearch !== null) return clientSearch;
-    if (typeof window !== 'undefined') return readWindowSearch();
-    return searchQueryParams.toString();
-  }, [clientSearch, searchQueryParams]);
+  const search = windowSearch ?? nextSearch;
 
-  const values: PageQueryParamValues<P> = useMemo(() => {
-    const urlQueryParamsObject = queryString.parse(search);
-    return getPageQueryParamsValues<P>(config, urlQueryParamsObject);
-  }, [config, search]);
+  const values: PageQueryParamValues<P> = useMemo(
+    () => getPageQueryParamsValues<P>(config, queryString.parse(search)),
+    [config, search]
+  );
 
   const setter = useCallback<PageQueryParamSetter<P>>(
     (newParams, setterExtraConfig) => {
-      if (!isObjectLike(newParams) || typeof window === 'undefined') {
-        return;
-      }
+      if (!isObjectLike(newParams)) return;
       const replace =
         setterExtraConfig?.replace ?? extraConfig?.replace ?? false;
 
-      const searchAtCall = window.location.search;
-      const pathAtCall = window.location.pathname;
+      // read at call time: render-time search is stale for back-to-back setters
+      const { pathname, search: currentSearch } = window.location;
       const updatedUrlSearch = getUpdatedUrlSearch(
         config,
         newParams,
-        searchAtCall
+        currentSearch
       );
       const newHref =
-        pathAtCall + (updatedUrlSearch ? `?${updatedUrlSearch}` : '');
-      const currentHref = pathAtCall + searchAtCall;
-      if (newHref === currentHref) {
-        return;
-      }
+        pathname + (updatedUrlSearch ? `?${updatedUrlSearch}` : '');
+      if (newHref === pathname + currentSearch) return;
 
-      // Optimistic local update (jsdom mocks of location.search often ignore pushState).
-      setClientSearch(updatedUrlSearch);
-
-      const writeHistory = () => {
-        if (replace) {
-          window.history.replaceState(null, '', newHref);
-        } else {
-          window.history.pushState(null, '', newHref);
-        }
-        window.dispatchEvent(new Event(QUERY_PARAMS_SYNC_EVENT));
-      };
-      // Defer past mount effects so Next's History patch is in place (edge-R004-A1).
-      queueMicrotask(writeHistory);
+      // null state: with Next's __NA state its History patch skips the useSearchParams sync
+      if (replace) window.history.replaceState(null, '', newHref);
+      else window.history.pushState(null, '', newHref);
+      window.dispatchEvent(new Event(QUERY_PARAMS_SYNC_EVENT));
     },
     [extraConfig?.replace, config]
   );
