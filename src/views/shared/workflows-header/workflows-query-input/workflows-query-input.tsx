@@ -14,8 +14,13 @@ export default function WorkflowsQueryInput({
   refetchQuery,
   isQueryRunning,
 }: Props) {
-  const { queryText, setQueryText, nextSuggestions, onSuggestionSelect } =
-    useQueryTextWithAutocomplete({ initialValue: value });
+  const {
+    queryText,
+    setQueryText,
+    nextSuggestions,
+    onSuggestionSelect,
+    focusProps,
+  } = useQueryTextWithAutocomplete({ initialValue: value, onCommit: setValue });
 
   const isQueryUnchanged = value && value === queryText;
 
@@ -38,6 +43,8 @@ export default function WorkflowsQueryInput({
         value={queryText}
         options={nextSuggestions}
         mapOptionToString={(option) => option}
+        onFocus={focusProps.onFocus}
+        onBlur={focusProps.onBlur}
         onChange={(value, suggestion) => {
           if (suggestion) {
             onSuggestionSelect(suggestion);

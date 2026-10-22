@@ -1,8 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback } from 'react';
 
 import { Search } from 'baseui/icon';
 import { Input } from 'baseui/input';
-import debounce from 'lodash/debounce';
 
 import usePageQueryParams from '@/hooks/use-page-query-params/use-page-query-params';
 import {
@@ -10,6 +9,7 @@ import {
   type PageQueryParamKeys,
   type PageQueryParamSetterValues,
 } from '@/hooks/use-page-query-params/use-page-query-params.types';
+import useUrlDraft from '@/hooks/use-url-draft/use-url-draft';
 
 import { overrides } from './page-filters-search.styles';
 import { type Props } from './page-filters-search.types';
@@ -31,12 +31,6 @@ export default function PageFiltersSearch<
 
   const queryParamsSearch = queryParams[searchQueryParamKey];
 
-  const [inputState, setInputState] = useState<string>('');
-
-  useEffect(() => {
-    setInputState(queryParamsSearch);
-  }, [queryParamsSearch]);
-
   const setSearch = useCallback(
     (value: string) =>
       setQueryParams({ [searchQueryParamKey]: value } as Partial<
@@ -45,31 +39,21 @@ export default function PageFiltersSearch<
     [searchQueryParamKey, setQueryParams]
   );
 
-  const setSearchMaybeDebounced = useMemo(() => {
-    if (inputDebounceDurationMs)
-      return debounce(setSearch, inputDebounceDurationMs);
-    return setSearch;
-  }, [setSearch, inputDebounceDurationMs]);
-
-  useEffect(
-    () => () => {
-      if (
-        'cancel' in setSearchMaybeDebounced &&
-        typeof setSearchMaybeDebounced.cancel === 'function'
-      )
-        setSearchMaybeDebounced.cancel();
-    },
-    [setSearchMaybeDebounced]
-  );
+  const { draft, setDraft, focusProps } = useUrlDraft({
+    committedValue: queryParamsSearch,
+    onCommit: setSearch,
+    writeMode: inputDebounceDurationMs
+      ? { debounceMs: inputDebounceDurationMs }
+      : 'immediate',
+  });
 
   return (
     <Input
-      value={inputState}
+      value={draft}
       onChange={(event) => {
-        const searchValue = event.target.value.replaceAll(searchTrimRegExp, '');
-        setInputState(searchValue);
-        setSearchMaybeDebounced(searchValue);
+        setDraft(event.target.value.replaceAll(searchTrimRegExp, ''));
       }}
+      {...focusProps}
       placeholder={searchPlaceholder}
       startEnhancer={() => <Search />}
       clearable

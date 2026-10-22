@@ -11,8 +11,11 @@ jest.mock('../hooks/use-query-text-with-autocomplete', () =>
     setQueryText: jest.fn(),
     nextSuggestions: [],
     onSuggestionSelect: jest.fn(),
+    focusProps: { onFocus: jest.fn(), onBlur: jest.fn() },
   }))
 );
+
+const mockFocusProps = { onFocus: jest.fn(), onBlur: jest.fn() };
 
 describe(WorkflowsQueryInput.name, () => {
   it('renders as expected', async () => {
@@ -30,6 +33,7 @@ describe(WorkflowsQueryInput.name, () => {
         setQueryText: jest.fn(),
         nextSuggestions: [],
         onSuggestionSelect: jest.fn(),
+        focusProps: mockFocusProps,
       },
     });
 
@@ -56,6 +60,7 @@ describe(WorkflowsQueryInput.name, () => {
         setQueryText: jest.fn(),
         nextSuggestions: [],
         onSuggestionSelect: jest.fn(),
+        focusProps: mockFocusProps,
       },
     });
 
@@ -71,6 +76,7 @@ describe(WorkflowsQueryInput.name, () => {
         setQueryText: jest.fn(),
         nextSuggestions: [],
         onSuggestionSelect: jest.fn(),
+        focusProps: mockFocusProps,
       },
     });
 
@@ -89,6 +95,7 @@ describe(WorkflowsQueryInput.name, () => {
         setQueryText: jest.fn(),
         nextSuggestions: [],
         onSuggestionSelect: jest.fn(),
+        focusProps: mockFocusProps,
       },
     });
 
@@ -105,6 +112,7 @@ describe(WorkflowsQueryInput.name, () => {
         setQueryText: mockSetQueryText,
         nextSuggestions: [],
         onSuggestionSelect: jest.fn(),
+        focusProps: mockFocusProps,
       },
     });
 
@@ -122,6 +130,7 @@ describe(WorkflowsQueryInput.name, () => {
         setQueryText: jest.fn(),
         nextSuggestions: ['WorkflowType = "example"', 'WorkflowType != "test"'],
         onSuggestionSelect: jest.fn(),
+        focusProps: mockFocusProps,
       },
     });
 
@@ -145,6 +154,7 @@ describe(WorkflowsQueryInput.name, () => {
         setQueryText: jest.fn(),
         nextSuggestions: ['WorkflowType = "example"', 'WorkflowType != "test"'],
         onSuggestionSelect: mockOnSuggestionSelect,
+        focusProps: mockFocusProps,
       },
     });
 
@@ -167,6 +177,7 @@ describe(WorkflowsQueryInput.name, () => {
         setQueryText: jest.fn(),
         nextSuggestions: [],
         onSuggestionSelect: jest.fn(),
+        focusProps: mockFocusProps,
       },
     });
 
@@ -182,6 +193,7 @@ describe(WorkflowsQueryInput.name, () => {
         setQueryText: jest.fn(),
         nextSuggestions: [],
         onSuggestionSelect: jest.fn(),
+        focusProps: mockFocusProps,
       },
     });
 

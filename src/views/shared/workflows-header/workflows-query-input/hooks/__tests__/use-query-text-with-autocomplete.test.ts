@@ -167,7 +167,10 @@ describe('useQueryTextWithAutocomplete', () => {
 function setupHook(initialValue: string = '') {
   return renderHook(
     (props?: { initialValue: string }) =>
-      useQueryTextWithAutocomplete(props || { initialValue: '' }),
+      useQueryTextWithAutocomplete({
+        onCommit: jest.fn(),
+        ...(props || { initialValue: '' }),
+      }),
     undefined,
     { initialProps: { initialValue } }
   );
