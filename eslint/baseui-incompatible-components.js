@@ -3,7 +3,7 @@ module.exports = {
     {
       name: 'react-input-mask',
       message:
-        'Do not import react-input-mask. It uses findDOMNode, which React 19 removed.',
+        'Do not import react-input-mask because it is incompatible with React 19.',
     },
     {
       name: 'baseui/datepicker',
@@ -14,20 +14,20 @@ module.exports = {
         'Datepicker_DO_NOT_USE',
       ],
       message:
-        'Do not import this DatePicker. Use @/components/date-time-picker or StatefulCalendar, Calendar, TimePicker, or TimezonePicker. DatepickerOverrides is still allowed for Calendar styling.',
+        'Do not import this DatePicker because it is incompatible with React 19. Use @/components/date-time-picker or StatefulCalendar, Calendar, TimePicker, or TimezonePicker. DatepickerOverrides is still allowed for Calendar styling.',
     },
     {
       name: 'baseui/input',
       importNames: ['MaskedInput'],
       message:
-        'Do not import MaskedInput. It pulls in react-input-mask, which uses findDOMNode. Use baseui Input instead.',
+        'Do not import MaskedInput because it is incompatible with React 19. Use baseui Input instead.',
     },
   ],
   patterns: [
     {
       group: ['baseui/datepicker/*', 'baseui/datepicker/**'],
       message:
-        'Do not deep-import baseui/datepicker. Use DateTimePicker or allowed calendar and time exports from baseui/datepicker.',
+        'Do not deep-import baseui/datepicker because it is incompatible with React 19. Use DateTimePicker or allowed calendar and time exports from baseui/datepicker.',
     },
     {
       group: [
@@ -37,7 +37,7 @@ module.exports = {
         '**/react-input-mask/*',
       ],
       message:
-        'Do not import masked input or react-input-mask. They use findDOMNode, which React 19 removed.',
+        'Do not import masked input or react-input-mask as they are incompatible with React 19.',
     },
   ],
 };
